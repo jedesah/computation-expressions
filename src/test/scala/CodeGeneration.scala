@@ -3,7 +3,6 @@ package com.github.jedesah
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.{currentMirror => cm}
 import scala.tools.reflect.ToolBox
-import scala.tools.reflect.ToolBoxError
 
 import org.specs2.mutable._
 import com.github.jedesah.IdiomBracket.ContextSubset
