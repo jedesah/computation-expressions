@@ -254,17 +254,33 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         }
       }
     }*/
-    "asc reverse core site" ! prop {(phone: Option[String], hitCounter: Option[String], locById: Option[String]) =>
-      def test(a: String, b: String): Option[(String, String)] = Some((a,b))
-      def otherTest(a: String, b: String, c: String): Option[String] = Some(a)
+    "asc reverse core site" in {
+      "without val pattern match" ! prop { (phone: Option[String], hitCounter: Option[String], locById: Option[String]) =>
+        def test(a: String, b: String): Option[(String, String)] = Some((a, b))
+        def otherTest(a: String, b: String, c: String): Option[String] = Some(a)
 
-      val result = IdiomBracket.monad[Option, String] {
-        val tuple: (String, String) = extract(test(extract(phone), extract(hitCounter)))
-        extract(otherTest(tuple._2, tuple._1, extract(locById)))
+        val result = IdiomBracket.monad[Option, String] {
+          val tuple: (String, String) = extract(test(extract(phone), extract(hitCounter)))
+          extract(otherTest(tuple._2, tuple._1, extract(locById)))
+        }
+        val first = Monad[Option].bind2(phone, hitCounter)(test)
+        val expected = Monad[Option].bind2(first, locById)((first1, locById1) => otherTest(first1._2, first1._1, locById1))
+        result == expected
       }
-      val first = Monad[Option].bind2(phone, hitCounter)(test)
-      val expected = Monad[Option].bind2(first, locById)((first1, locById1) => otherTest(first1._2, first1._1, locById1))
-      result == expected
+      // I don't think this is easy to support for now cuz of issues with unapply in match statement
+      // reminder: value pattern match is transformed into a pattern match
+      /*"with original val pattern match" ! prop { (phone: Option[String], hitCounter: Option[String], locById: Option[String]) =>
+        def test(a: String, b: String): Option[(String, String)] = Some((a, b))
+        def otherTest(a: String, b: String, c: String): Option[String] = Some(a)
+
+        val result = IdiomBracket.monad[Option, String] {
+          val (dict, res) = extract(test(extract(phone), extract(hitCounter)))
+          extract(otherTest(dict, res, extract(locById)))
+        }
+        val first = Monad[Option].bind2(phone, hitCounter)(test)
+        val expected = Monad[Option].bind2(first, locById)((first1, locById1) => otherTest(first1._2, first1._1, locById1))
+        result == expected
+      }*/
     }
     "with interpolated string" in {
       "simple" ! prop {(a: Option[String]) =>
