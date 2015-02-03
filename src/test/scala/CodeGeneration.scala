@@ -167,5 +167,23 @@ class CodeGeneration extends Specification {
                     """
       compareAndPrintIfDifferent(transformed, expected, compareString = true)
     }
+    // Don't know how to make this a deterministic test
+    /*"asc reverse core site" in {
+      val ast = q"""
+                   val phone: Option[String] = ???
+                   val hitCounter: Option[String] = ???
+                   val locById: Option[String] = ???
+                   def test(a: String, b: String): Option[(String, String)] = ???
+                   def otherTest(a: String, b: String, c: String): Option[String] = ???
+                   val tuple: (String, String) = extract(test(extract(phone), extract(hitCounter)))
+                   extract(otherTest(tuple._2, tuple._1, extract(locById)))
+                """
+      val transformed = transformLast(ast, monadic = true, nbLines = 2)
+      val expected = q"""
+                      val tuple = App.bind2(phone, hitCounter)(test)
+                      App.bind3(App.map(tuple)(_._1), App.map(tuple)(_._2), locById)(otherTest)
+                      """
+      compareAndPrintIfDifferent(transformed, expected)
+    }*/
   }
 }

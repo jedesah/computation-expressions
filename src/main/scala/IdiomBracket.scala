@@ -206,7 +206,10 @@ object IdiomBracket {
             else List(expr, trueCase, falseCase).map(lift(_)._1)
           (q"$applicativeInstance.bind($exprT)(if(_) $trueCaseT else $falseCaseT)", 1)
         }
-      case _ => (q"$applicativeInstance.pure($expr)", 0)
+      case Select(qual, name) =>
+        val lifted = lift(qual)._1
+        (q"$applicativeInstance.map($lifted)(_.${name.toTermName})", 1)
+      case _ => (q"$applicativeInstance.pure($expr)", 1)
     }
 
     def getApplyTerm(arity: Int, flatten: Boolean = false) = {
