@@ -16,13 +16,13 @@ object IdiomBracket {
   def control(x: String): Option[String] = macro controlImpl
 
   @compileTimeOnly("`extract` must be enclosed in an `IdiomBracket`")
-  def extract[F[_], T](applicative: F[T]): T = ??? // Should be removed by macro expansion
+  def extract[F[_], T](applicative: F[T]): T = sys.error(s"extract should have been removed by macro expansion!")
 
   def debug(x: Any): Unit = macro debugImpl
 
   object auto {
     @compileTimeOnly("`extract` must be enclosed in an `IdiomBracket`")
-    implicit def extract[T](option: Option[T]): T = ??? // Should be removed by macro expansion
+    implicit def extract[T](option: Option[T]): T = sys.error(s"extract should have been removed by macro expansion!")
   }
 
   import scala.reflect.macros.blackbox.Context
