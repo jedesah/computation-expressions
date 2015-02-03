@@ -91,14 +91,13 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           val f = IdiomBracket.monad[Option, String](doThing(other(extract(firstThis(extract(a)))),extract(b), extract(c)))
           f ==== Applicative[Option].apply3(Applicative[Option].map(Monad[Option].bind(a)(firstThis))(other),b,c)(doThing)
         }
-        // Remember to uncomment once you have bind2
-        /*"with 2 monads inside first extract" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int]) =>
+        "with 2 monads inside first extract" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int]) =>
           def doThing(e: String, h: String) = e + h
           def firstThis(gg: String, hh: String): Option[String] = d.map(gg.take(_))
           def other(gg: String): String = gg + "/"
           val f = IdiomBracket.monad[Option, String](doThing(other(extract(firstThis(extract(a), extract(b)))), extract(c)))
           f == Applicative[Option].apply2(Applicative[Option].map(Monad[Option].bind2(a,b)(firstThis))(other),c)(doThing)
-        }*/
+        }
         "tricky function that takes a monad and extracts itself. Want to make sure we are not to eager to lift things" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int]) =>
           def doThing(e: String, f: String, h: String) = e + f + h
           def firstThis(gg: String): Option[String] = d.map(gg.take(_))
