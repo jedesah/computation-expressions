@@ -2,6 +2,8 @@ name := "idiom-bracket"
 
 organization := "com.github.jedesah"
 
+startYear := Some(2014)
+
 version := "0.1-SNAPSHOT"
 
 scalaVersion := "2.11.5"
