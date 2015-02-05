@@ -125,31 +125,27 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
       }
     }
     "block" in {
-      "simple" ! prop { (a: Option[String]) =>
-        def otherThing(ff: String) = ff * 3
+      "simple" ! prop { (a: Option[String], otherThing: String => String) =>
         val f = IdiomBracket[Option, String] {
           otherThing(extract(a))
         }
         f ==== Applicative[Option].map(a)(otherThing)
       }
-      "slighly more complex is a useless way you would think" ! prop { (a: Option[String]) =>
-        def otherThing(ff: String) = ff * 3
+      "slighly more complex is a useless way you would think" ! prop { (a: Option[String], otherThing: String => String) =>
         val f = IdiomBracket[Option, String] {
           otherThing(extract(a))
           otherThing(extract(a))
         }
         f ==== Applicative[Option].map(a)(otherThing)
       }
-      "pointless val" ! prop { (a: Option[String]) =>
-        def otherThing(ff: String) = ff * 3
+      "pointless val" ! prop { (a: Option[String], otherThing: String => String) =>
         val f = IdiomBracket[Option, String] {
           val aa = otherThing(extract(a))
           aa
         }
         f ==== Applicative[Option].map(a)(otherThing)
       }
-      "slighly less simple and somewhat usefull" ! prop { (a: Option[String]) =>
-        def otherThing(ff: String) = ff * 3
+      "slighly less simple and somewhat usefull" ! prop { (a: Option[String], otherThing: String => String) =>
         val f = IdiomBracket[Option, String] {
           val aa = otherThing(extract(a))
           otherThing(aa)
@@ -174,7 +170,6 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           f == None
       }
       "with stable identifier in case statement" ! prop { (a: Option[String], b: Option[String]) =>
-        import IdiomBracket.extract
         val f = IdiomBracket[Option, String] {
           val bb = extract(b)
           extract(a) match {
@@ -200,16 +195,14 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
       }
     }
     tag("funky")
-    "renamed import" ! prop { (a: Option[String], b: Option[String]) =>
+    "renamed import" ! prop { (a: Option[String], b: Option[String], doThing: (String, String) => String) =>
       import IdiomBracket.{extract => extractt}
-      def doThing(e: String, f: String) = e + f
       val f = IdiomBracket[Option, String](doThing(extractt(a),extractt(b)))
       f == Applicative[Option].apply2(a,b)(doThing)
     }
     tag("funky")
-    "implicit extract" ! prop { (a: Option[String], b: Option[String]) =>
+    "implicit extract" ! prop { (a: Option[String], b: Option[String], doThing: (String, String) => String) =>
       import IdiomBracket.auto.extract
-      def doThing(e: String, f: String) = e + f
       val f = IdiomBracket[Option, String](doThing(a,b))
       f == Applicative[Option].apply2(a,b)(doThing)
     }
@@ -278,18 +271,15 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
       }
     }
     "with currying" in {
-      "2 currys with one param" ! prop { (a: Option[String]) =>
-        def test(a: String)(b: String) = a + b
+      "2 currys with one param" ! prop { (a: Option[String], test: String => String => String) =>
         val f = IdiomBracket[Option, String](test(extract(a))("foo"))
         f == Applicative[Option].map(a)(test(_)("foo"))
       }
-      "2 currys with one two params" ! prop { (a: Option[String], b: Option[String]) =>
-        def test(a: String, b: String)(c: String) = a + b + c
+      "2 currys with one two params" ! prop { (a: Option[String], b: Option[String], test: (String, String) => String => String) =>
         val f = IdiomBracket[Option, String](test(extract(a), extract(b))("foo"))
         f == Applicative[Option].apply2(a, b)(test(_,_)("foo"))
       }
-      "2 currys with two two params" ! prop { (a: Option[String], b: Option[String]) =>
-        def test(a: String, b: String)(c: String, d: String) = a + b + c + d
+      "2 currys with two two params" ! prop { (a: Option[String], b: Option[String], test: (String, String) => (String, String) => String) =>
         val f = IdiomBracket[Option, String](test(extract(a), extract(b))("foo", "bar"))
         f == Applicative[Option].apply2(a, b)(test(_,_)("foo", "bar"))
       }
