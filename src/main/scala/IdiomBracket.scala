@@ -135,8 +135,12 @@ object IdiomBracket {
             // extract(a).take(4) -> ($1, $2) => $1.take($2), then List(a,4) are arguments we can lift and we will
             // ultamitely end up with Applicative.apply2(a,Applicative.pure(4))(($1,$2) => $1.take($2))
           } else {
-            val Select(exprRef, methodName) = ref
-            (createMethod(methodName, args.size), exprRef :: args)
+            ref match {
+              case Select(exprRef, methodName) => (createMethod(methodName, args.size), exprRef :: args)
+              // This is the case where we are dealing we currying.
+              case app: Apply => (createMethod(TermName("apply"), args.size), app :: args)
+            }
+
           }
         val liftedArgs = args1.map(lift(_)._1)
         val applyTerm = getApplyTerm(liftedArgs.length, flatten)

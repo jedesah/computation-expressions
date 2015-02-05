@@ -167,6 +167,18 @@ class CodeGeneration extends Specification {
                     """
       compareAndPrintIfDifferent(transformed, expected, compareString = true)
     }
+    "with currying" in {
+      val ast = q"""
+                def test(a: String)(b: String): String  = ???
+                val a: Option[String] = ???
+                test(extract(a))("foo")
+              """
+      val transformed = transformLast(ast)
+      val expected = q"""
+                       App.apply2(App.map(a)(test), App.pure("foo"))((x1,x2) => x1.apply(x2))
+                    """
+      compareAndPrintIfDifferent(transformed, expected, compareString = true)
+    }
     // Don't know how to make this a deterministic test
     /*"asc reverse core site" in {
       val ast = q"""
