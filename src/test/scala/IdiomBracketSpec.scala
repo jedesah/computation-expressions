@@ -22,19 +22,16 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
 
   "IdiomBracket" should {
     "simple function application" in {
-      "2 params" ! prop { (a: Option[String], b: Option[String]) =>
-        def doThing(e: String, f: String) = e + f
+      "2 params" ! prop { (a: Option[String], b: Option[String], doThing: (String, String) => String) =>
         val f = IdiomBracket[Option, String](doThing(extract[Option, String](a), extract[Option, String](b)))
         f ==== Applicative[Option].apply2(a, b)(doThing)
       }
       "3 params" in {
-        "all extracts" ! prop { (a: Option[String], b: Option[String], c: Option[String]) =>
-          def doThing(e: String, f: String, h: String) = e + f + h
+        "all extracts" ! prop { (a: Option[String], b: Option[String], c: Option[String], doThing: (String, String, String) => String) =>
           val f = IdiomBracket[Option, String](doThing(extract(a), extract(b), extract(c)))
           f ==== Applicative[Option].apply3(a, b, c)(doThing)
         }
-        "some extracts, some not " ! prop { (a: String, b: Option[String], c: Option[String]) =>
-          def doThing(e: String, f: String, h: String) = e + f + h
+        "some extracts, some not " ! prop { (a: String, b: Option[String], c: Option[String], doThing: (String, String, String) => String) =>
           val f = IdiomBracket[Option, String](doThing(a, extract(b), extract(c)))
           f ==== Applicative[Option].apply3(Some(a),b,c)(doThing)
         }
@@ -50,8 +47,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         f ==== Applicative[Option].apply2(a,c)(_.indexOf(b, _))
       }
       "complex method invocation" in {
-        "1" ! prop { (a: Option[String], b: Int, c: Option[Int]) =>
-          def doThing(e: String, f: String) = e + f
+        "1" ! prop { (a: Option[String], b: Int, c: Option[Int], doThing: (String, String) => String) =>
           val f = IdiomBracket[Option, Int](doThing(extract(a), extract(c).toString).indexOf(b, extract(c)))
           f ==== Applicative[Option].apply2(a, c)((aa, cc) => doThing(aa, cc.toString).indexOf(b, cc))
         }
@@ -62,62 +58,40 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
       }
     }
     "extract buried" in {
-      "deep" ! prop { (a: Option[String], b: Option[String], c: Option[String]) =>
-        def doThing(e: String, f: String, h: String) = e + f + h
-        def otherThing(ff: String) = ff * 3
+      "deep" ! prop { (a: Option[String], b: Option[String], c: Option[String], doThing: (String, String, String) => String, otherThing: String => String) =>
         val f = IdiomBracket[Option, String](doThing(otherThing(extract(a)), extract(b), extract(c)))
         f ==== Applicative[Option].apply3(a, b, c)((aa, bb, cc) => doThing(otherThing(aa), bb, cc))
       }
-      "deeper" ! prop { (a: Option[String], b: Option[String], c: Option[String]) =>
-        def doThing(e: String, f: String, h: String) = e + f + h
-        def otherThing(ff: String) = ff * 3
-        def firstThis(gg: String) = gg.take(1)
+      "deeper" ! prop { (a: Option[String], b: Option[String], c: Option[String], doThing: (String, String, String) => String, otherThing: String => String, firstThis: String => String) =>
         val f = IdiomBracket[Option, String](doThing(otherThing(firstThis(extract(a))), extract(b), extract(c)))
         f ==== Applicative[Option].apply3(a,b,c)((aa,bb,cc) => doThing(otherThing(firstThis(aa)), bb,cc))
       }
     }
     "monadic" in {
       "double nested extract within argument" in {
-        "simple enough" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int]) =>
-          def doThing(e: String, f: String, h: String) = e + f + h
-          def firstThis(gg: String): Option[String] = d.map(gg.take(_))
+        "simple enough" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int], doThing: (String, String, String) => String, firstThis: String => Option[String]) =>
           val f = IdiomBracket.monad[Option, String](doThing(extract(firstThis(extract(a))), extract(b), extract(c)))
           f ==== Applicative[Option].apply3(Monad[Option].bind(a)(firstThis), b, c)(doThing)
         }
-        "nested a little deeper" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int]) =>
-          def doThing(e: String, f: String, h: String) = e + f + h
-          def firstThis(gg: String): Option[String] = d.map(gg.take(_))
-          def other(gg: String): String = gg + "/"
+        "nested a little deeper" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int], doThing: (String, String, String) => String, firstThis: String => Option[String], other: String => String) =>
           val f = IdiomBracket.monad[Option, String](doThing(other(extract(firstThis(extract(a)))),extract(b), extract(c)))
           f ==== Applicative[Option].apply3(Applicative[Option].map(Monad[Option].bind(a)(firstThis))(other),b,c)(doThing)
         }
-        "with 2 monads inside first extract" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int]) =>
-          def doThing(e: String, h: String) = e + h
-          def firstThis(gg: String, hh: String): Option[String] = d.map(gg.take(_))
-          def other(gg: String): String = gg + "/"
+        "with 2 monads inside first extract" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int], doThing: (String, String) => String, firstThis: (String, String) => Option[String], other: String => String) =>
           val f = IdiomBracket.monad[Option, String](doThing(other(extract(firstThis(extract(a), extract(b)))), extract(c)))
           f == Applicative[Option].apply2(Applicative[Option].map(Monad[Option].bind2(a,b)(firstThis))(other),c)(doThing)
         }
-        "tricky function that takes a monad and extracts itself. Want to make sure we are not to eager to lift things" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int]) =>
-          def doThing(e: String, f: String, h: String) = e + f + h
-          def firstThis(gg: String): Option[String] = d.map(gg.take(_))
-          def other(gg: Option[String]): String = gg.getOrElse("")
+        "tricky function that takes a monad and extracts itself. Want to make sure we are not to eager to lift things" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int], doThing: (String, String, String) => String, firstThis: String => String, other: String => String) =>
           val f = IdiomBracket.monad[Option, String](doThing(other(firstThis(extract(a))),extract(b), extract(c)))
           f ==== Applicative[Option].apply3(Applicative[Option].map(Applicative[Option].map(a)(firstThis))(other),b,c)(doThing)
         }
-        "if that is like a monadic function" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int]) =>
-          def doThing(e: String, f: String, h: String) = e + f + h
-          def firstThis(gg: String): Option[String] = d.map(gg.take(_))
-          def other(gg: String): String = gg + "/"
+        "if that is like a monadic function" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int], doThing: (String, String, String) => String, other: String => String) =>
           val f = IdiomBracket.monad[Option, String]{doThing(other(extract(if (extract(a) == "") Some("a") else None)),extract(b), extract(c))}
           f ==== Applicative[Option].apply3(Applicative[Option].map(Monad[Option].bind(a)(f => if (f == "") Some("a") else None))(other),b,c)(doThing)
         }
         "interpolated String" ! prop {(a: Option[String]) =>
-          val f = IdiomBracket.monad[Option, String] {s"It’s ${extract(a)}!"}
-          if (a.isDefined)
-            f == Some(s"It’s ${a.get}!")
-          else
-            f == None
+          val f = IdiomBracket.monad[Option, String] {s"It is ${extract(a)}!"}
+          f ==== Applicative[Option].map(a)(aa => s"It is $aa!")
         }
         "is lazy with if/else" in {
           import scala.concurrent.Future
