@@ -178,9 +178,7 @@ object IdiomBracket {
       // TODO: Figure out why unchanged case pattern seems to go bonky in macro
       case Match(expr, cases) =>
         val (tCases, argsWithWhatTheyReplace: List[List[(u.TermName, u.Tree)]]@unchecked) = cases.map { case cq"$x1 => $x2" =>
-          val (newX1, argsWithWhatTheyReplace1) =
-            if (extractsArePresent(x1)) replaceExtractWithRef(x1)
-            else (x1, (Nil))
+          val (newX1, argsWithWhatTheyReplace1) = replaceExtractWithRefInPatternMatch(x1)
           val (newX2, argsWithWhatTheyReplace2) =
             if (extractsArePresent(x2)) {
               val paramName = TermName(c.freshName())
@@ -244,7 +242,7 @@ object IdiomBracket {
       Function(lhs, rhs)
     }
 
-    def replaceExtractWithRef(pattern: u.Tree): (u.Tree, (List[(u.TermName,u.Tree)])) = {
+    def replaceExtractWithRefInPatternMatch(pattern: u.Tree): (u.Tree, (List[(u.TermName,u.Tree)])) = {
       val namesWithReplaced = ListBuffer[(u.TermName, u.Tree)]()
       object ReplaceExtract extends Transformer {
         override def transform(tree: u.Tree): u.Tree = tree match {
