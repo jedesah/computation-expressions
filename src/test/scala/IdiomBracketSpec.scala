@@ -9,7 +9,7 @@ import org.specs2.mutable._
 import IdiomBracket.extract
 
 import scala.concurrent.Await
-import scalaz.{Monad, Applicative}
+import scalaz.{Monad, Applicative, Apply}
 import scalaz.std.option._
 import scalaz.std.list._
 
@@ -24,7 +24,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
     "simple function application" in {
       "2 params" ! prop { (a: Option[String], b: Option[String], doThing: (String, String) => String) =>
         val f = IdiomBracket[Option, String](doThing(extract[Option, String](a), extract[Option, String](b)))
-        f ==== Applicative[Option].apply2(a, b)(doThing)
+        f ==== Apply[Option].apply2(a, b)(doThing)
       }
       "3 params" in {
         "all extracts" ! prop { (a: Option[String], b: Option[String], c: Option[String], doThing: (String, String, String) => String) =>
@@ -85,7 +85,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           val f = IdiomBracket.monad[Option, String](doThing(other(firstThis(extract(a))),extract(b), extract(c)))
           f ==== Applicative[Option].apply3(Applicative[Option].map(Applicative[Option].map(a)(firstThis))(other),b,c)(doThing)
         }
-        "if that is like a monadic function" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int], doThing: (String, String, String) => String, other: String => String) =>
+        "if/else expression that is like a monadic function" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int], doThing: (String, String, String) => String, other: String => String) =>
           val f = IdiomBracket.monad[Option, String]{doThing(other(extract(if (extract(a) == "") Some("a") else None)),extract(b), extract(c))}
           f ==== Applicative[Option].apply3(Applicative[Option].map(Monad[Option].bind(a)(f => if (f == "") Some("a") else None))(other),b,c)(doThing)
         }
