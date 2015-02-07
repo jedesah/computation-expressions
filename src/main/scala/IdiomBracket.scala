@@ -117,34 +117,11 @@ object IdiomBracket {
         } else {
           (extracted, 1)
         }
-      case Apply(ref, args) =>
-        val (ref1, args1) =
-        // There are not extracts in the LHS of this function/method application
-          if (!extractsArePresent(ref)) {
-            ref match {
-              // This is a method invocations and we need to treat it separately because of Scala quirks.
-              // This will make an anonymous function that does not do much
-              // List(1,3).take(3) -> ($1) => List(1,3).take($1)
-              case Select(exprRef, methodName) => (createMethodWithLHS(methodName, exprRef, args.size), args)
-              // It's just a plain old reference to a function, so we can use the reference as is
-              // com.github.jedesah.foo -> com.github.jedesah.foo
-              case _ => (ref, args)
-            }
-            // There is an extract in the LHS of this function/method application
-            // We need to create an anonymous function to transform the LHS into an argument of a plain old function
-            // extract(a).take(4) -> ($1, $2) => $1.take($2), then List(a,4) are arguments we can lift and we will
-            // ultamitely end up with Applicative.apply2(a,Applicative.pure(4))(($1,$2) => $1.take($2))
-          } else {
-            ref match {
-              case Select(exprRef, methodName) => (createMethod(methodName, args.size), exprRef :: args)
-              // This is the case where we are dealing we currying.
-              case app: Apply => (createMethod(TermName("apply"), args.size), app :: args)
-            }
-
-          }
-        val liftedArgs = args1.map(lift(_)._1)
+      case app: Apply =>
+        val (ref, args) = replaceExtractWithRef(app)
+        val liftedArgs = args.map(lift(_)._1)
         val applyTerm = getApplyTerm(liftedArgs.length, flatten)
-        if (liftedArgs.forall(!isExtractFunction(_))) (q"$applicativeInstance.$applyTerm(..$liftedArgs)($ref1)", 1)
+        if (liftedArgs.forall(!isExtractFunction(_))) (q"$applicativeInstance.$applyTerm(..$liftedArgs)($ref)", 1)
         else {
           val names: List[u.TermName] = List.fill(liftedArgs.size)(c.freshName()).map(TermName(_))
           val transformedArgs = liftedArgs.zip(names).map { case (arg, name) =>
@@ -152,7 +129,7 @@ object IdiomBracket {
             if (extractsArePresent(arg)) ident
             else q"$applicativeInstance.pure($ident)"
           }
-          val inner = createFunction(q"$applicativeInstance.$applyTerm(..$transformedArgs)($ref1)", names)
+          val inner = createFunction(q"$applicativeInstance.$applyTerm(..$transformedArgs)($ref)", names)
           val reLiftedArgs = liftedArgs.map(lift(_))
           (q"$applicativeInstance.$applyTerm(..$reLiftedArgs)($inner)", 2)
         }
@@ -230,20 +207,32 @@ object IdiomBracket {
       Function(lhs, rhs)
     }
 
-    def createMethod(methodName: u.Name, nArgs: Int) = {
-      val names = List.fill(nArgs + 1)(c.freshName())
-      val lhs = names.map( name => ValDef(Modifiers(Flag.PARAM | Flag.SYNTHETIC), TermName(name), TypeTree(), EmptyTree))
-      val args = names.map(name => Ident(TermName(name)))
-      val rhs = Apply(Select(args.head, methodName), args.tail)
-      Function(lhs, rhs)
-    }
-
-    def createMethodWithLHS(methodName: u.Name, select: u.Tree, nArgs: Int) = {
-      val names = List.fill(nArgs)(c.freshName())
-      val lhs = names.map( name => ValDef(Modifiers(Flag.PARAM | Flag.SYNTHETIC), TermName(name), TypeTree(), EmptyTree))
-      val args = names.map(name => Ident(TermName(name)))
-      val rhs = Apply(Select(select, methodName), args)
-      Function(lhs, rhs)
+    def replaceExtractWithRef(app: u.Apply): (u.Tree, List[u.Tree]) = {
+      val namesWithReplaced = ListBuffer[(u.TermName, u.Tree)]()
+      val newFun = if (extractsArePresent(app.fun)) {
+        val name = TermName(c.freshName())
+        app.fun match {
+          case Select(ref, methodName) =>
+            namesWithReplaced += ((name, ref))
+            Select(Ident(name), methodName)
+          case innerApp: Apply =>
+            namesWithReplaced += ((name, innerApp))
+            Select(Ident(name), TermName("apply"))
+        }
+      } else app.fun
+      val newArgs = app.args.map { arg =>
+        if (extractsArePresent(arg)) {
+          val name = TermName(c.freshName())
+          namesWithReplaced += ((name, arg))
+          Ident(name)
+        } else arg
+      }
+      if (namesWithReplaced.toList.size == app.args.size && app.fun.isInstanceOf[Ident]) (app.fun, app.args)
+      else {
+        val lhs = namesWithReplaced.toList.unzip._1.map(name => ValDef(Modifiers(Flag.PARAM | Flag.SYNTHETIC), name, TypeTree(), EmptyTree))
+        val rhs = Apply(newFun, newArgs)
+        (Function(lhs, rhs), namesWithReplaced.toList.unzip._2)
+      }
     }
 
     def replaceExtractWithRefInPatternMatch(pattern: u.Tree): (u.Tree, (List[(u.TermName,u.Tree)])) = {

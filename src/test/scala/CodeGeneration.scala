@@ -64,14 +64,13 @@ class CodeGeneration extends Specification {
               """
       val transformed = transformLast(ast)
       val expected = q"""
-                    App.apply3(
+                    App.apply2(
                       App.apply2(
                         a,
-                        App.map(c)(x4 => x4.toString())
+                        App.map(c)(x5 => x5.toString())
                       )(doThing),
-                      App.pure(b),
                       c
-                    )((x1, x2, x3) => x1.indexOf(x2,x3))
+                    )((x1, x2) => x1.indexOf(b,x2))
                    """
       compareAndPrintIfDifferent(transformed, expected, compareString = true)
     }
@@ -175,7 +174,7 @@ class CodeGeneration extends Specification {
               """
       val transformed = transformLast(ast)
       val expected = q"""
-                       App.apply2(App.map(a)(test), App.pure("foo"))((x1,x2) => x1.apply(x2))
+                       App.map(App.map(a)(test))((x1) => x1.apply("foo"))
                     """
       compareAndPrintIfDifferent(transformed, expected, compareString = true)
     }
