@@ -21,13 +21,12 @@ class CodeGeneration extends Specification {
 
   def compareAndPrintIfDifferent(actual: reflect.runtime.universe.Tree, expected: reflect.runtime.universe.Tree, compareString: Boolean = false) = {
     val areEqual = if(compareString) actual.toString == expected.toString else actual equalsStructure expected
-    if (areEqual) true
+    // There must be a better way of doing this!
+    if (areEqual) true ==== true
     else {
-      println("ACTUAL PRETTY:\n" + actual)
-      println("EXPECTED PRETTY:\n" + expected)
-      println("ACTUAL RAW:\n" + showRaw(actual))
-      println("EXPECTED RAW:\n" + showRaw(expected))
-      false
+      //println("ACTUAL RAW:\n" + showRaw(actual))
+      //println("EXPECTED RAW:\n" + showRaw(expected))
+      actual ==== expected
     }
   }
 
