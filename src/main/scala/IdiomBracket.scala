@@ -92,7 +92,7 @@ object IdiomBracket {
    * @param u The universe of the Trees. Required to operate under current Scala reflection architecture. Trees cannot
    *          exist without a universe.
    * @param c Context to use. Typically supplied by the macro definition
-   * @param tree Tree to transform
+   * @param ast AST to transform
    * @return Some(Tree) if the tree was transformed or none if it was not transformed
    */
   def transform(u: scala.reflect.api.Universe)(c: ContextSubset[u.type], ast: u.Tree, applicativeInstance: u.Tree, monadic: Boolean): Option[u.Tree] = {
