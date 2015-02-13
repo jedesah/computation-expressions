@@ -117,6 +117,7 @@ object IdiomBracket {
         } else {
           (extracted, 1)
         }
+      case _ if !extractsArePresent(expr) => (q"$applicativeInstance.pure($expr)", 1)
       case app: Apply =>
         val (ref, args) = replaceExtractWithRef(app)
         val liftedArgs = args.map(lift(_)._1)
@@ -188,7 +189,7 @@ object IdiomBracket {
       case Select(qual, name) =>
         val lifted = lift(qual)._1
         (q"$applicativeInstance.map($lifted)(_.${name.toTermName})", 1)
-      case _ => (q"$applicativeInstance.pure($expr)", 1)
+      case _ => throw new AssertionError("An extract remains, but I don't know how to get rid of it, I am sorry...")
     }
 
     def getApplyTerm(arity: Int, flatten: Boolean = false) = {
