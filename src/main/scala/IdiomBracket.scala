@@ -111,13 +111,13 @@ object IdiomBracket {
         // directly nested extracts: extract(extract(a))
         if (isExtractFunction(extracted)) c.abort(c.enclosingPosition, "It is not possible to lift directly nested extracts")
         // indirectly nested extracts: extract(do(extract(a))); this is fine but we need to be monadic
-        if (extractsArePresent(extracted) && !monadic) c.abort(c.enclosingPosition, "It is not possible to lift nested extracts in non monadic context")
-        if (extractsArePresent(extracted) && monadic) {
+        if (hasExtracts(extracted) && !monadic) c.abort(c.enclosingPosition, "It is not possible to lift nested extracts in non monadic context")
+        if (hasExtracts(extracted) && monadic) {
           lift(extracted, true)
         } else {
           (extracted, 1)
         }
-      case _ if !extractsArePresent(expr) => (q"$applicativeInstance.pure($expr)", 1)
+      case _ if !hasExtracts(expr) => (q"$applicativeInstance.pure($expr)", 1)
       case app: Apply =>
         val (ref, args) = replaceExtractWithRef(app)
         val liftedArgs = args.map(lift(_)._1)
@@ -127,7 +127,7 @@ object IdiomBracket {
           val names: List[u.TermName] = List.fill(liftedArgs.size)(c.freshName()).map(TermName(_))
           val transformedArgs = liftedArgs.zip(names).map { case (arg, name) =>
             val ident = Ident(name)
-            if (extractsArePresent(arg)) ident
+            if (hasExtracts(arg)) ident
             else q"$applicativeInstance.pure($ident)"
           }
           val inner = createFunction(q"$applicativeInstance.$applyTerm(..$transformedArgs)($ref)", names)
@@ -162,7 +162,7 @@ object IdiomBracket {
         val (tCases, argsWithWhatTheyReplace: List[List[(u.TermName, u.Tree)]]@unchecked) = cases.map { case cq"$x1 => $x2" =>
           val (newX1, argsWithWhatTheyReplace1) = replaceExtractWithRefInPatternMatch(x1)
           val (newX2, argsWithWhatTheyReplace2) =
-            if (extractsArePresent(x2)) {
+            if (hasExtracts(x2)) {
               val paramName = TermName(c.freshName())
               (Ident(paramName), (List(paramName,x2)))
             }
@@ -210,7 +210,7 @@ object IdiomBracket {
 
     def replaceExtractWithRef(app: u.Apply): (u.Tree, List[u.Tree]) = {
       val namesWithReplaced = ListBuffer[(u.TermName, u.Tree)]()
-      val newFun = if (extractsArePresent(app.fun)) {
+      val newFun = if (hasExtracts(app.fun)) {
         val name = TermName(c.freshName())
         app.fun match {
           case Select(ref, methodName) =>
@@ -222,7 +222,7 @@ object IdiomBracket {
         }
       } else app.fun
       val newArgs = app.args.map { arg =>
-        if (extractsArePresent(arg)) {
+        if (hasExtracts(arg)) {
           val name = TermName(c.freshName())
           namesWithReplaced += ((name, arg))
           Ident(name)
@@ -270,16 +270,9 @@ object IdiomBracket {
       q"com.github.jedesah.IdiomBracket.extract($expr)"
     }
 
-    def extractsArePresent(expr: u.Tree): Boolean = {
-      var result = false
-      object FindExtract extends Traverser {
-        override def traverse(tree: u.Tree): Unit =
-          if(isExtractFunction(tree)) result = true
-          else super.traverse(tree)
-      }
-      FindExtract.traverse(expr)
-      result
-    }
+    def nbExtracts(expr: u.Tree): Int = expr.filter(isExtractFunction).size
+
+    def hasExtracts(expr: u.Tree): Boolean = expr.exists(isExtractFunction)
 
     def isExtractFunction(tree: u.Tree): Boolean = {
       val idiomBracketPath = "com.github.jedesah.IdiomBracket"
