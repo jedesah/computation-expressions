@@ -191,10 +191,11 @@ object IdiomBracket {
           val lhsName = TermName(c.freshName())
           val function = createFunction(q"$lhsName match { case ..$tCases}", lhsName :: names)
           wrapInApply(function, allArgs.map(lift(_)._1))
-        case If(expr, trueCase, falseCase) =>
+        case ifExpr@If(expr, trueCase, falseCase) =>
           if (!monadic) {
-            val liftedParts = List(expr, trueCase, falseCase).map(lift(_)._1)
-            wrapInApply(q"if(_) _ else _", liftedParts)
+            val (withExtractsRemoved, substitutions) = replaceExtractWithRefIf(ifExpr)
+            val lambda = createLambda(withExtractsRemoved,substitutions.keys.toList)
+            wrapInApply(lambda, substitutions.values.toList.map(lift(_)._1))
           }
           else {
             val List(exprT, trueCaseT, falseCaseT) =
@@ -251,6 +252,18 @@ object IdiomBracket {
         val rhs = Apply(newFun, newArgs)
         (Function(lhs, rhs), namesWithReplaced.toList.unzip._2)
       }
+    }
+
+    def replaceExtractWithRefIf(ifElse: u.If): (u.Tree, Map[u.TermName,u.Tree]) = {
+      val substitutions = collection.mutable.Map[u.TermName, u.Tree]()
+      val List(newCondition, newThen, newElse) = List(ifElse.cond, ifElse.thenp, ifElse.elsep).map { expr =>
+        if (hasExtracts(expr)){
+          val name = TermName(c.freshName())
+          substitutions += ((name, expr))
+          Ident(name)
+        } else expr
+      }
+      (If(newCondition, newThen, newElse), substitutions.toMap)
     }
 
     /**

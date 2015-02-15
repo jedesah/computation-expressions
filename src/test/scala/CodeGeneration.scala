@@ -153,6 +153,17 @@ class CodeGeneration extends Specification {
         compareAndPrintIfDifferent(transformed, expected)
       }
     }
+    "if statement" in {
+      val ast = q"""
+                  val a: Option[String] = ???
+                  if (extract(a).length == 5) 10 else 20
+                """
+      val transformed = transformLast(ast)
+      val expected = q"""
+                      App.map(a)(x1 => if(x1.length().==(5)) 10 else 20)
+                     """
+      compareAndPrintIfDifferent(transformed, expected)
+    }.pendingUntilFixed("This test does not work because the detection of one extract does not work and I am too lazy to come up with the current code generation")
     tag("interpolated string")
     "interpolated string" in {
       val ast = q"""
