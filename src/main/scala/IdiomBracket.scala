@@ -105,91 +105,108 @@ object IdiomBracket {
      * @param expr Expression to be lifted by an AST transformation
      * @return New expression that has been lifted
      */
-    def lift(expr: u.Tree, flatten: Boolean = false): (u.Tree, Int) = expr match {
-      case fun: Apply if isExtractFunction(fun) =>
-        val extracted = fun.args(0)
-        // directly nested extracts: extract(extract(a))
-        if (isExtractFunction(extracted)) c.abort(c.enclosingPosition, "It is not possible to lift directly nested extracts")
-        // indirectly nested extracts: extract(do(extract(a))); this is fine but we need to be monadic
-        if (hasExtracts(extracted) && !monadic) c.abort(c.enclosingPosition, "It is not possible to lift nested extracts in non monadic context")
-        if (hasExtracts(extracted) && monadic) {
-          lift(extracted, true)
-        } else {
-          (extracted, 1)
-        }
-      case _ if !hasExtracts(expr) => (q"$applicativeInstance.pure($expr)", 1)
-      case app: Apply =>
-        val (ref, args) = replaceExtractWithRef(app)
-        val liftedArgs = args.map(lift(_)._1)
-        val applyTerm = getApplyTerm(liftedArgs.length, flatten)
-        if (liftedArgs.forall(!isExtractFunction(_))) (q"$applicativeInstance.$applyTerm(..$liftedArgs)($ref)", 1)
-        else {
-          val names: List[u.TermName] = List.fill(liftedArgs.size)(c.freshName()).map(TermName(_))
-          val transformedArgs = liftedArgs.zip(names).map { case (arg, name) =>
-            val ident = Ident(name)
-            if (hasExtracts(arg)) ident
-            else q"$applicativeInstance.pure($ident)"
-          }
-          val inner = createFunction(q"$applicativeInstance.$applyTerm(..$transformedArgs)($ref)", names)
-          val reLiftedArgs = liftedArgs.map(lift(_))
-          (q"$applicativeInstance.$applyTerm(..$reLiftedArgs)($inner)", 2)
-        }
-      case Block(exprs, finalExpr) => {
-        var arityLastTransform: Int = 0
-        val newExprs = (exprs :+ finalExpr).foldLeft[(Map[String, Int], List[u.Tree])]((Map(), Nil)) { (accu, expr) =>
-          val (names, exprs) = accu
-          expr match {
-            // We need to remember the name of the value definition so that we can add extract methods later so that the right thing happens
-            case ValDef(mods, name, tpt, rhs) =>
-              val (tRHS, transformArity) = lift(addExtractR(rhs, names))
-              arityLastTransform = transformArity
-              (names + (name.toString -> transformArity), exprs :+ ValDef(mods, name, TypeTree(), tRHS))
-            // If it's just an identifier, let's leave it as is but reconstruct it so that it looses it's type.
-            case ident: Ident =>
-              arityLastTransform = names(ident.name.toString)
-              (names, exprs :+ Ident(TermName(ident.name.toString)))
-            // Anything else, we need to add extracts to identifiers of transformed `ValDef`s because we lifted the type of the symbol they refer to.
-            case _ =>
-              val (transformed, transformArity) = lift(addExtractR(expr, names))
-              arityLastTransform = transformArity
-              (names, exprs :+ transformed)
-          }
-        }._2
-        (Block(newExprs.init, newExprs.last), arityLastTransform)
+    def lift(expr: u.Tree, flatten: Boolean = false): (u.Tree, Int) = {
+      def wrapInApply(expr: u.Tree, args: List[u.Tree]) = {
+        val applyTerm = getApplyTerm(args.length, flatten)
+        (q"$applicativeInstance.$applyTerm(..$args)($expr)", 1)
       }
-      // TODO: Figure out why unchanged case pattern seems to go bonky in macro
-      case Match(expr, cases) =>
-        val (tCases, argsWithWhatTheyReplace: List[List[(u.TermName, u.Tree)]]@unchecked) = cases.map { case cq"$x1 => $x2" =>
-          val (newX1, argsWithWhatTheyReplace1) = replaceExtractWithRefInPatternMatch(x1)
-          val (newX2, argsWithWhatTheyReplace2) =
-            if (hasExtracts(x2)) {
-              val paramName = TermName(c.freshName())
-              (Ident(paramName), (List(paramName,x2)))
+      expr match {
+        case fun: Apply if isExtractFunction(fun) =>
+          val extracted = fun.args(0)
+          // directly nested extracts: extract(extract(a))
+          if (isExtractFunction(extracted)) c.abort(c.enclosingPosition, "It is not possible to lift directly nested extracts")
+          // indirectly nested extracts: extract(do(extract(a))); this is fine but we need to be monadic
+          if (hasExtracts(extracted) && !monadic) c.abort(c.enclosingPosition, "It is not possible to lift nested extracts in non monadic context")
+          if (hasExtracts(extracted) && monadic) {
+            lift(extracted, true)
+          } else {
+            (extracted, 1)
+          }
+        case _ if !hasExtracts(expr) => (q"$applicativeInstance.pure($expr)", 1)
+        // I cannot get this to work for the life of me.
+        // It's supposed to detect if there is only one extract a just map over it.
+        // not need to know the exact structure, but it leads to widespread compiler crashing on macro expansion
+        /*case _ if nbExtracts(expr) == 1 =>
+          val (newExpr, replaced) = replaceExtractWithRefDebug(expr, insidePatternMatch = false)
+          val List((name, arg)) = replaced
+          //val lambda = createLambda(newExpr, names)
+          //wrapWithApply(lambda, args)
+          val liftedArg = lift(arg)._1
+          val tpt = tq""
+          val param = q"val $name: $tpt"
+          wrapWithApply(q"{abbgg => $newExpr; ???}", List(arg))*/
+        case app: Apply =>
+          val (ref, args) = replaceExtractWithRefApply(app)
+          wrapInApply(ref, args.map(lift(_)._1))
+          // Not sure yet how to handle case with direct nested extracts
+          // Currently will error because of check in first case
+          /*else {
+            val names: List[u.TermName] = List.fill(liftedArgs.size)(c.freshName()).map(TermName(_))
+            val transformedArgs = liftedArgs.zip(names).map { case (arg, name) =>
+              val ident = Ident(name)
+              if (hasExtracts(arg)) ident
+              else q"$applicativeInstance.pure($ident)"
             }
-            else (x2, (Nil))
-          (cq"$newX1 => $newX2", argsWithWhatTheyReplace1 ++ argsWithWhatTheyReplace2)
-        }.unzip
-        val (names, args) = argsWithWhatTheyReplace.flatten.unzip
-        val allArgs = (expr :: args).map(lift(_)._1)
-        val applyTerm = getApplyTerm(allArgs.size)
-        val lhsName = TermName(c.freshName())
-        val function = createFunction(q"$lhsName match { case ..$tCases}", lhsName :: names)
-        (q"$applicativeInstance.$applyTerm(..$allArgs)($function)", 1)
-      case If(expr, trueCase, falseCase) =>
-        if (!monadic) {
-          val liftedParts = List(expr, trueCase, falseCase).map(lift(_)._1)
-          (q"$applicativeInstance.apply3(..$liftedParts)(if(_) _ else _)", 1)
+            val inner = createFunction(q"$applicativeInstance.$applyTerm(..$transformedArgs)($ref)", names)
+            val reLiftedArgs = liftedArgs.map(lift(_))
+            (q"$applicativeInstance.$applyTerm(..$reLiftedArgs)($inner)", 2)
+          }*/
+        case Block(exprs, finalExpr) => {
+          var arityLastTransform: Int = 0
+          val newExprs = (exprs :+ finalExpr).foldLeft[(Map[String, Int], List[u.Tree])]((Map(), Nil)) { (accu, expr) =>
+            val (names, exprs) = accu
+            expr match {
+              // We need to remember the name of the value definition so that we can add extract methods later so that the right thing happens
+              case ValDef(mods, name, tpt, rhs) =>
+                val (tRHS, transformArity) = lift(addExtractR(rhs, names))
+                arityLastTransform = transformArity
+                (names + (name.toString -> transformArity), exprs :+ ValDef(mods, name, TypeTree(), tRHS))
+              // If it's just an identifier, let's leave it as is but reconstruct it so that it looses it's type.
+              case ident: Ident =>
+                arityLastTransform = names(ident.name.toString)
+                (names, exprs :+ Ident(TermName(ident.name.toString)))
+              // Anything else, we need to add extracts to identifiers of transformed `ValDef`s because we lifted the type of the symbol they refer to.
+              case _ =>
+                val (transformed, transformArity) = lift(addExtractR(expr, names))
+                arityLastTransform = transformArity
+                (names, exprs :+ transformed)
+            }
+          }._2
+          (Block(newExprs.init, newExprs.last), arityLastTransform)
         }
-        else {
-          val List(exprT, trueCaseT, falseCaseT) =
-            if (flatten) List(lift(expr)._1, trueCase, falseCase)
-            else List(expr, trueCase, falseCase).map(lift(_)._1)
-          (q"$applicativeInstance.bind($exprT)(if(_) $trueCaseT else $falseCaseT)", 1)
-        }
-      case Select(qual, name) =>
-        val lifted = lift(qual)._1
-        (q"$applicativeInstance.map($lifted)(_.${name.toTermName})", 1)
-      case _ => throw new AssertionError("An extract remains, but I don't know how to get rid of it, I am sorry...")
+        // TODO: Figure out why unchanged case pattern seems to go bonky in macro
+        case Match(expr, cases) =>
+          val (tCases, argsWithWhatTheyReplace: List[List[(u.TermName, u.Tree)]]@unchecked) = cases.map { case cq"$x1 => $x2" =>
+            val (newX1, argsWithWhatTheyReplace1) = replaceExtractWithRef(x1, insidePatternMatch = true)
+            val (newX2, argsWithWhatTheyReplace2) =
+              if (hasExtracts(x2)) {
+                val paramName = TermName(c.freshName())
+                (Ident(paramName), (List(paramName,x2)))
+              }
+              else (x2, (Nil))
+            (cq"$newX1 => $newX2", argsWithWhatTheyReplace1 ++ argsWithWhatTheyReplace2)
+          }.unzip
+          val (names, args) = argsWithWhatTheyReplace.flatten.unzip
+          val allArgs = (expr :: args)
+          val lhsName = TermName(c.freshName())
+          val function = createFunction(q"$lhsName match { case ..$tCases}", lhsName :: names)
+          wrapInApply(function, allArgs.map(lift(_)._1))
+        case If(expr, trueCase, falseCase) =>
+          if (!monadic) {
+            val liftedParts = List(expr, trueCase, falseCase).map(lift(_)._1)
+            wrapInApply(q"if(_) _ else _", liftedParts)
+          }
+          else {
+            val List(exprT, trueCaseT, falseCaseT) =
+              if (flatten) List(lift(expr)._1, trueCase, falseCase)
+              else List(expr, trueCase, falseCase).map(lift(_)._1)
+            (q"$applicativeInstance.bind($exprT)(if(_) $trueCaseT else $falseCaseT)", 1)
+          }
+        case Select(qual, name) =>
+          val lifted = lift(qual)._1
+          wrapInApply(q"_.${name.toTermName}", List(lifted))
+        case _ => throw new AssertionError("An extract remains, but I don't know how to get rid of it, I am sorry...")
+      }
     }
 
     def getApplyTerm(arity: Int, flatten: Boolean = false) = {
@@ -208,7 +225,7 @@ object IdiomBracket {
       Function(lhs, rhs)
     }
 
-    def replaceExtractWithRef(app: u.Apply): (u.Tree, List[u.Tree]) = {
+    def replaceExtractWithRefApply(app: u.Apply): (u.Tree, List[u.Tree]) = {
       val namesWithReplaced = ListBuffer[(u.TermName, u.Tree)]()
       val newFun = if (hasExtracts(app.fun)) {
         val name = TermName(c.freshName())
@@ -236,14 +253,14 @@ object IdiomBracket {
       }
     }
 
-    def replaceExtractWithRefInPatternMatch(pattern: u.Tree): (u.Tree, (List[(u.TermName,u.Tree)])) = {
+    def replaceExtractWithRef(pattern: u.Tree, insidePatternMatch: Boolean): (u.Tree, (List[(u.TermName,u.Tree)])) = {
       val namesWithReplaced = ListBuffer[(u.TermName, u.Tree)]()
       object ReplaceExtract extends Transformer {
         override def transform(tree: u.Tree): u.Tree = tree match {
           case fun: Apply if isExtractFunction(fun) =>
             val name = TermName(c.freshName())
             namesWithReplaced += ((name, fun))
-            q"`$name`"
+            if (insidePatternMatch) q"`$name`" else Ident(name)
           case _ => super.transform(tree)
         }
       }
@@ -268,6 +285,15 @@ object IdiomBracket {
 
     def addExtract(expr: u.Tree): u.Tree = {
       q"com.github.jedesah.IdiomBracket.extract($expr)"
+    }
+
+    // Not sure if this method works or not. Not currently used.
+    def createLambda(rhs: u.Tree, names: List[u.TermName]) = {
+      val tpt = tq""
+      //val lhs = names.map(name => ValDef(Modifiers(Flag.PARAM), name, TypeTree(), EmptyTree))
+      val params = names.map(name => q"val $name: $tpt")
+      //Function(lhs, rhs)
+      q"(..$params) => $rhs"
     }
 
     def nbExtracts(expr: u.Tree): Int = expr.filter(isExtractFunction).size
