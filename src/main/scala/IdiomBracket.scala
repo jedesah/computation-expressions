@@ -253,7 +253,20 @@ object IdiomBracket {
       }
     }
 
-    def replaceExtractWithRef(pattern: u.Tree, insidePatternMatch: Boolean): (u.Tree, (List[(u.TermName,u.Tree)])) = {
+    /**
+     *
+     * @param expr The expression from which to replace any extract with an identifier
+     * @param insidePatternMatch Whether we are inside of a pattern match. If we are inside a pattern match, we need
+     *                           to use a stable identifier in order for the transformed code to have the same meaning
+     *                           as the original code because an identifier in a pattern match is being assigned too
+     *                           if not indicated as a stable identifier that refers to some stable value outside
+     *                           the pattern match
+     * @return The transformed tree along with a list of new identifiers and the expressions they replace
+     *         (including the original extract function)
+     *         Pitfall: It would be tempting to remove the extract here but removing the extract should be left
+     *         to more specialized code because there are few corner cases to consider.
+     */
+    def replaceExtractWithRef(expr: u.Tree, insidePatternMatch: Boolean): (u.Tree, (List[(u.TermName,u.Tree)])) = {
       val namesWithReplaced = ListBuffer[(u.TermName, u.Tree)]()
       object ReplaceExtract extends Transformer {
         override def transform(tree: u.Tree): u.Tree = tree match {
@@ -264,7 +277,7 @@ object IdiomBracket {
           case _ => super.transform(tree)
         }
       }
-      val result = ReplaceExtract.transform(pattern)
+      val result = ReplaceExtract.transform(expr)
       (result, namesWithReplaced.toList)
     }
 
