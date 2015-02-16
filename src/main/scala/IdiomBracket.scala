@@ -36,18 +36,18 @@ object IdiomBracket {
     c.Expr[Unit](result)
   }
 
-  def idiomBracket[T: c.WeakTypeTag, F[_]](c: Context)(x: c.Expr[T])(ap: c.Expr[Applicative[F]]): c.Expr[F[T]] = {
+  def idiomBracket[T: c.WeakTypeTag, F[_]](c: Context)(x: c.Expr[T])(ap: c.Expr[Applicative[F]])(implicit tag: c.WeakTypeTag[F[_]]): c.Expr[F[T]] = {
     import c.universe._
     val applicativeInstance = ap.tree
-    val result = transform(c.universe)(ContextSubset(c),x.tree, applicativeInstance, monadic = false)
+    val result = transform(c.universe)(ContextSubset(c),x.tree, applicativeInstance, tag.tpe, monadic = false)
     if (!result.isDefined) c.warning(c.enclosingPosition,merelyLiftedMsg)
     c.Expr[F[T]](result.getOrElse(q"$applicativeInstance.pure(${x.tree})"))
   }
 
-  def idiomBracketMonad[T, F[_]](c: Context)(x: c.Expr[T])(m: c.Expr[Monad[F]]): c.Expr[F[T]] = {
+  def idiomBracketMonad[T, F[_]](c: Context)(x: c.Expr[T])(m: c.Expr[Monad[F]])(implicit tag: c.WeakTypeTag[F[_]]): c.Expr[F[T]] = {
     import c.universe._
     val monadInstance = m.tree
-    val result = transform(c.universe)(ContextSubset(c),x.tree, monadInstance, monadic = true)
+    val result = transform(c.universe)(ContextSubset(c),x.tree, monadInstance, tag.tpe, monadic = true)
     if (!result.isDefined) c.warning(c.enclosingPosition, merelyLiftedMsg)
     c.Expr[F[T]](result.getOrElse(q"$monadInstance.pure(${x.tree})"))
   }
@@ -95,7 +95,7 @@ object IdiomBracket {
    * @param ast AST to transform
    * @return Some(Tree) if the tree was transformed or none if it was not transformed
    */
-  def transform(u: scala.reflect.api.Universe)(c: ContextSubset[u.type], ast: u.Tree, applicativeInstance: u.Tree, monadic: Boolean): Option[u.Tree] = {
+  def transform(u: scala.reflect.api.Universe)(c: ContextSubset[u.type], ast: u.Tree, applicativeInstance: u.Tree, instanceType: u.Type, monadic: Boolean): Option[u.Tree] = {
     import u._
 
     /**
@@ -208,6 +208,10 @@ object IdiomBracket {
         case Select(qual, name) =>
           val lifted = lift(qual)._1
           wrapInApply(q"_.${name.toTermName}", List(lifted))
+        case Typed(expr, typeName) =>
+          // TODO: This possibly not the most robust way of doing things, but it works for now
+          val result = AppliedTypeTree(Ident(TypeName(instanceType.toString)),List(typeName))
+          (Typed(lift(expr)._1, result),1)
         case _ => throw new AssertionError(s"An extract remains in this expression: $expr, but I don't know how to get rid of it, I am sorry...")
       }
     }
@@ -330,6 +334,8 @@ object IdiomBracket {
     }
 
     val (result, transformArity) = lift(ast)
+    println(result)
+    println(showRaw(result))
     if (transformArity == 0) None else Some(result)
   }
 }

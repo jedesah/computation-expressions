@@ -33,9 +33,10 @@ class CodeGeneration extends Specification {
   def transformLast(block: reflect.runtime.universe.Tree, nbLines: Int = 1, monadic: Boolean = false) = {
     val extractImport = q"import com.github.jedesah.IdiomBracket.auto.extract"
     val tb = cm.mkToolBox()
-    val lastLines = tb.typecheck(Block(extractImport :: block.children.init, block.children.last)).children.takeRight(nbLines)
+    val everythingTyped = tb.typecheck(Block(extractImport :: block.children.init, block.children.last))
+    val lastLines = everythingTyped.children.takeRight(nbLines)
     val testAST = if(nbLines == 1)lastLines.head else Block(lastLines.init, lastLines.last)
-    tb.untypecheck(IdiomBracket.transform(scala.reflect.runtime.universe)(new DefaultContext,testAST, q"App", monadic).get)
+    tb.untypecheck(IdiomBracket.transform(scala.reflect.runtime.universe)(new DefaultContext,testAST, q"App", everythingTyped.tpe, monadic).get)
   }
 
   "code generation" should {
@@ -188,6 +189,18 @@ class CodeGeneration extends Specification {
                     """
       compareAndPrintIfDifferent(transformed, expected, compareString = true)
     }
+    "with typed" in {
+      val ast = q"""
+                def test(a: String): String  = ???
+                val a: Option[String] = ???
+                test(extract(a)): String
+              """
+      val transformed = transformLast(ast)
+      val expected = q"""
+                       App.map(a)(test): Option[String]
+                    """
+      compareAndPrintIfDifferent(transformed, expected, compareString = true)
+    }.pendingUntilFixed("not sure how to pass in the the type that is an Applicative directly to the genreation function")
     // Don't know how to make this a deterministic test
     /*"asc reverse core site" in {
       val ast = q"""
