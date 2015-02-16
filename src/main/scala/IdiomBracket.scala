@@ -187,9 +187,11 @@ object IdiomBracket {
             (cq"$newX1 => $newX2", argsWithWhatTheyReplace1 ++ argsWithWhatTheyReplace2)
           }.unzip
           val (names, args) = argsWithWhatTheyReplace.flatten.unzip
-          val allArgs = (expr :: args)
-          val lhsName = TermName(c.freshName())
-          val function = createFunction(q"$lhsName match { case ..$tCases}", lhsName :: names)
+          val (allArgs, lhs, allNames) = if (hasExtracts(expr)) {
+            val lhsName = TermName(c.freshName())
+            (expr :: args, Ident(lhsName), lhsName :: names)
+          } else (args, expr, names)
+          val function = createFunction(q"$lhs match { case ..$tCases}", allNames)
           wrapInApply(function, allArgs.map(lift(_)._1))
         case ifExpr@If(expr, trueCase, falseCase) =>
           if (!monadic) {
