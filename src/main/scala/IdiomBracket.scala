@@ -194,7 +194,7 @@ object IdiomBracket {
         case ifExpr@If(expr, trueCase, falseCase) =>
           if (!monadic) {
             val (withExtractsRemoved, substitutions) = replaceExtractWithRefIf(ifExpr)
-            val lambda = createLambda(withExtractsRemoved,substitutions.keys.toList)
+            val lambda = createFunction(withExtractsRemoved,substitutions.keys.toList)
             wrapInApply(lambda, substitutions.values.toList.map(lift(_)._1))
           }
           else {
@@ -311,15 +311,6 @@ object IdiomBracket {
 
     def addExtract(expr: u.Tree): u.Tree = {
       q"com.github.jedesah.IdiomBracket.extract($expr)"
-    }
-
-    // Not sure if this method works or not. Not currently used.
-    def createLambda(rhs: u.Tree, names: List[u.TermName]) = {
-      val tpt = tq""
-      //val lhs = names.map(name => ValDef(Modifiers(Flag.PARAM), name, TypeTree(), EmptyTree))
-      val params = names.map(name => q"val $name: $tpt")
-      //Function(lhs, rhs)
-      q"(..$params) => $rhs"
     }
 
     def nbExtracts(expr: u.Tree): Int = expr.filter(isExtractFunction).size
