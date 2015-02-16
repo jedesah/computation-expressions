@@ -284,6 +284,10 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         f == Applicative[Option].apply2(a, b)(test(_,_)("foo", "bar"))
       }
     }
+    "with tuples" ! prop { (a: Option[String], b: Option[String], test: String => String) =>
+      val f = IdiomBracket[Option,(String,String)]{(test(extract(a)), extract(b))}
+      f ==== Applicative[Option].apply2(a,b)((aa,bb) => (test(aa),bb))
+    }
     "with List" ! prop {(a: List[String], b: List[String]) =>
       val f = IdiomBracket[List, String](extract(a) + extract(b))
       f == Applicative[List].apply2(a,b)(_ + _)
