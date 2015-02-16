@@ -208,7 +208,7 @@ object IdiomBracket {
         case Select(qual, name) =>
           val lifted = lift(qual)._1
           wrapInApply(q"_.${name.toTermName}", List(lifted))
-        case _ => throw new AssertionError("An extract remains, but I don't know how to get rid of it, I am sorry...")
+        case _ => throw new AssertionError(s"An extract remains in this expression: $expr, but I don't know how to get rid of it, I am sorry...")
       }
     }
 
