@@ -201,8 +201,7 @@ class CodeGeneration extends Specification {
                     """
       compareAndPrintIfDifferent(transformed, expected, compareString = true)
     }.pendingUntilFixed("not sure how to pass in the the type that is an Applicative directly to the genreation function")
-    // Don't know how to make this a deterministic test
-    /*"asc reverse core site" in {
+    "asc reverse core site" in {
       val ast = q"""
                    val phone: Option[String] = ???
                    val hitCounter: Option[String] = ???
@@ -218,6 +217,6 @@ class CodeGeneration extends Specification {
                       App.bind3(App.map(tuple)(_._1), App.map(tuple)(_._2), locById)(otherTest)
                       """
       compareAndPrintIfDifferent(transformed, expected)
-    }*/
+    }.pendingUntilFixed("Don't know how to make this a deterministic test")
   }
 }
