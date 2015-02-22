@@ -35,7 +35,7 @@ class CodeGeneration extends Specification {
     val tb = cm.mkToolBox()
     val everythingTyped = tb.typecheck(Block(extractImport :: block.children.init, block.children.last))
     val lastLines = everythingTyped.children.takeRight(nbLines)
-    val testAST = if(nbLines == 1)lastLines.head else Block(lastLines.init, lastLines.last)
+    val testAST = if(lastLines.size == 1)lastLines.head else Block(lastLines.init, lastLines.last)
     tb.untypecheck(IdiomBracket.transform(scala.reflect.runtime.universe)(new DefaultContext,testAST, q"App", everythingTyped.tpe, monadic).get)
   }
 
