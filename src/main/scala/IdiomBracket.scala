@@ -334,8 +334,6 @@ object IdiomBracket {
     }
 
     val (result, transformArity) = lift(ast)
-    println(result)
-    println(showRaw(result))
     if (transformArity == 0) None else Some(result)
   }
 }
