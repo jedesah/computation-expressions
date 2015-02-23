@@ -39,6 +39,17 @@ class CodeGeneration extends Specification {
     tb.untypecheck(IdiomBracket.transform(scala.reflect.runtime.universe)(new DefaultContext,testAST, q"App", everythingTyped.tpe, monadic).get)
   }
 
+  def transform(block: reflect.runtime.universe.Tree, ignore: Int, monadic: Boolean = false) = {
+    val extractImport = q"import com.github.jedesah.IdiomBracket.auto.extract"
+    val tb = cm.mkToolBox()
+    val everythingTyped = tb.typecheck(Block(extractImport :: block.children.init, block.children.last))
+    val lastLines = everythingTyped.children.drop(ignore + 1)
+    val testAST = if(lastLines.size == 1)lastLines.head else Block(lastLines.init, lastLines.last)
+    val transformed = IdiomBracket.transform(scala.reflect.runtime.universe)(new DefaultContext,testAST, q"App", everythingTyped.tpe, monadic).get
+    println(transformed)
+    tb.untypecheck(transformed)
+  }
+
   "code generation" should {
     "simple function invocation" in {
       val ast = q"""
@@ -218,5 +229,22 @@ class CodeGeneration extends Specification {
                       """
       compareAndPrintIfDifferent(transformed, expected)
     }.pendingUntilFixed("Don't know how to make this a deterministic test")
+    "val definition pattern matching" in {
+      val ast = q"""
+                   val a: Option[String] = ???
+                   def test(a: String): (String, String) = ???
+                   val (first, second) = test(extract(a))
+                   first + second
+                """
+      val transformed = transform(ast, monadic = false, ignore = 2)
+      val expected = q"""
+                      App.map(a){ x1 =>
+                        val (first, second) = test(x1)
+                        first + second
+                      }
+                      """
+      compareAndPrintIfDifferent(transformed, expected)
+    }.pendingUntilFixed("It's quite hard to support pattern matching value definitions because of the complex desaguring involved (which happens before the Tree is passed into the macro)")
+
   }
 }

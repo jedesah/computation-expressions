@@ -152,6 +152,16 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         }
         f ==== Applicative[Option].map(a)(aa => otherThing(otherThing(aa)))
       }
+      /*"val pattern match" ! prop { (a: Option[String], test: String => (String, String)) =>
+        val f = IdiomBracket[Option, String] {
+          val (first, second) = test(extract(a))
+          first + second
+        }
+        f ==== Applicative[Option].map(a){aa =>
+          val (first, second) = test(aa)
+          first + second
+        }
+      }*/
     }
     "match" in {
       "with extract in LHS" ! prop { (a: Option[String]) =>
