@@ -145,7 +145,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         }
         f ==== Applicative[Option].map(a)(otherThing)
       }
-      "slighly less simple and somewhat usefull" ! prop { (a: Option[String], otherThing: String => String) =>
+      "slightly less simple and somewhat useful" ! prop { (a: Option[String], otherThing: String => String) =>
         val f = IdiomBracket[Option, String] {
           val aa = otherThing(extract(a))
           otherThing(aa)
