@@ -15,8 +15,6 @@ import scalaz.std.list._
 
 class IdiomBracketSpec extends Specification with ScalaCheck {
 
-  def doThing(e: String, f: String) = e + f
-
   implicit def FutureArbitrary[A: Arbitrary]: Arbitrary[scala.concurrent.Future[A]] =
     Arbitrary(arbitrary[A] map ((x: A) => scala.concurrent.Future.successful(x)))
 
@@ -51,7 +49,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           val f = IdiomBracket[Option, Int](doThing(extract(a), extract(c).toString).indexOf(b, extract(c)))
           f ==== Applicative[Option].apply2(a, c)((aa, cc) => doThing(aa, cc.toString).indexOf(b, cc))
         }
-        "2" ! prop { (a: Option[String], b: Int, c: Option[Int], d: Option[String]) =>
+        "2" ! prop { (a: Option[String], b: Int, c: Option[Int], d: Option[String], doThing: (String, String) => String) =>
           val f = IdiomBracket[Option, Int](doThing(extract(a), extract(d)).indexOf(b, extract(c)))
           f ==== Applicative[Option].apply3(a, c, d)((aa, cc, dd) => doThing(aa, dd).indexOf(b, cc))
         }
