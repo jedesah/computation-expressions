@@ -30,26 +30,49 @@ class Examples extends Specification with ScalaCheck {
   type HTML = String
 
   "Examples" should {
-    "simple enough" ! prop { (phoneString: String,
-                              lookupPhone: String => Future[Phone],
-                              lookupAddress: Phone => Future[Address],
-                              lookupReputation: Phone => Future[Score],
-                              renderPage: (Phone, Address, Int) => HTML) =>
+    "simple enough" in {
+      "explicit" ! prop { (phoneString: String,
+                           lookupPhone: String => Future[Phone],
+                           lookupAddress: Phone => Future[Address],
+                           lookupReputation: Phone => Future[Score],
+                           renderPage: (Phone, Address, Int) => HTML) =>
 
-      val f: Future[HTML] = IdiomBracket.monad[Future, HTML]{
-        val phone = lookupPhone(phoneString)
-        val address = lookupAddress(extract(phone))
-        val rep = lookupReputation(extract(phone))
-        renderPage(extract(phone), extract(address), extract(rep))
+        val f: Future[HTML] = IdiomBracket.monad[Future, HTML] {
+          val phone = lookupPhone(phoneString)
+          val address = lookupAddress(extract(phone))
+          val rep = lookupReputation(extract(phone))
+          renderPage(extract(phone), extract(address), extract(rep))
+        }
+        val expected = {
+          val phone = lookupPhone(phoneString)
+          val address = Monad[Future].bind(phone)(lookupAddress)
+          val rep = Monad[Future].bind(phone)(lookupReputation)
+          Applicative[Future].apply3(phone, address, rep)(renderPage)
+        }
+        val timeout = FiniteDuration(100, TimeUnit.MILLISECONDS)
+        Await.result(f, timeout) ==== Await.result(expected, timeout)
       }
-      val expected = {
-        val phone = lookupPhone(phoneString)
-        val address = Monad[Future].bind(phone)(lookupAddress)
-        val rep = Monad[Future].bind(phone)(lookupReputation)
-        Applicative[Future].apply3(phone, address, rep)(renderPage)
+      "implicit" ! prop { (phoneString: String,
+                           lookupPhone: String => Future[Phone],
+                           lookupAddress: Phone => Future[Address],
+                           lookupReputation: Phone => Future[Score],
+                           renderPage: (Phone, Address, Int) => HTML) =>
+        import com.github.jedesah.IdiomBracket.auto.extract
+        val f: Future[HTML] = IdiomBracket.monad[Future, HTML] {
+          val phone = lookupPhone(phoneString)
+          val address = lookupAddress(phone)
+          val rep = lookupReputation(phone)
+          renderPage(phone, address, rep)
+        }
+        val expected = {
+          val phone = lookupPhone(phoneString)
+          val address = Monad[Future].bind(phone)(lookupAddress)
+          val rep = Monad[Future].bind(phone)(lookupReputation)
+          Applicative[Future].apply3(phone, address, rep)(renderPage)
+        }
+        val timeout = FiniteDuration(100, TimeUnit.MILLISECONDS)
+        Await.result(f, timeout) ==== Await.result(expected, timeout)
       }
-      val timeout = FiniteDuration(100, TimeUnit.MILLISECONDS)
-      Await.result(f, timeout) ==== Await.result(expected, timeout)
     }
   }
 }
