@@ -340,7 +340,8 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
 
       val f = IdiomBracket[Future, String](extract(a) + extract(b))
 
-      Await.result(f, FiniteDuration(100, TimeUnit.MILLISECONDS)) ==== Await.result(Applicative[Future].apply2(a,b)(_ + _), FiniteDuration(100, TimeUnit.MILLISECONDS))
+      val timeout = FiniteDuration(100, TimeUnit.MILLISECONDS)
+      Await.result(f, timeout) ==== Await.result(Applicative[Future].apply2(a,b)(_ + _), timeout)
     }
   }
 }
