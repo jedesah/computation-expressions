@@ -1,6 +1,8 @@
 # Idiom Brackets
 An implementation of Idiom Brackets in Scala in the form of a macro definition.
 
+I think I will rename this project to Computation Expressions as per [this paper](http://tomasp.net/academic/papers/computation-zoo/computation-zoo.pdf) which describes very closely what I am trying to accomplish here.
+
 ## Features
 - Uses the least powerful abstraction required to desugar the code within the bracket (this means that it can fail-fast with `Future`s)
 - Syntactic sugar for any abstraction that has instances for Scalaz Apply, Applicative, Monad
