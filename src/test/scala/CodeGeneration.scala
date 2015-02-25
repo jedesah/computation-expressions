@@ -31,7 +31,7 @@ class CodeGeneration extends Specification {
   }
 
   def transformLast(block: reflect.runtime.universe.Tree, nbLines: Int = 1, monadic: Boolean = false) = {
-    val extractImport = q"import com.github.jedesah.IdiomBracket.auto.extract"
+    val extractImport = q"import com.github.jedesah.IdiomBracket.extract"
     val tb = cm.mkToolBox()
     val everythingTyped = tb.typecheck(Block(extractImport :: block.children.init, block.children.last))
     val lastLines = everythingTyped.children.takeRight(nbLines)
@@ -40,7 +40,7 @@ class CodeGeneration extends Specification {
   }
 
   def transform(block: reflect.runtime.universe.Tree, ignore: Int, monadic: Boolean = false) = {
-    val extractImport = q"import com.github.jedesah.IdiomBracket.auto.extract"
+    val extractImport = q"import com.github.jedesah.IdiomBracket.extract"
     val tb = cm.mkToolBox()
     val everythingTyped = tb.typecheck(Block(extractImport :: block.children.init, block.children.last))
     val lastLines = everythingTyped.children.drop(ignore + 1)

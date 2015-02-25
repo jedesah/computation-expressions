@@ -18,11 +18,15 @@ object IdiomBracket {
   @compileTimeOnly("`extract` must be enclosed in an `IdiomBracket`")
   def extract[F[_], T](applicative: F[T]): T = sys.error(s"extract should have been removed by macro expansion!")
 
+  // I do not know why I need this... It has to do with the reflective toolbox
+  @compileTimeOnly("`extract` must be enclosed in an `IdiomBracket`")
+  def extract[T](applicative: Option[T]): T = sys.error(s"extract should have been removed by macro expansion!")
+
   def debug(x: Any): Unit = macro debugImpl
 
   object auto {
     @compileTimeOnly("`extract` must be enclosed in an `IdiomBracket`")
-    implicit def extract[T](option: Option[T]): T = sys.error(s"extract should have been removed by macro expansion!")
+    implicit def extract[F[_], T](option: F[T]): T = sys.error(s"extract should have been removed by macro expansion!")
   }
 
   import scala.reflect.macros.blackbox.Context
