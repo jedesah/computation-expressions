@@ -91,34 +91,55 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           val f = IdiomBracket.monad[Option, String] {s"It is ${extract(a)}!"}
           f ==== Applicative[Option].map(a)(aa => s"It is $aa!")
         }
-        "is lazy with if/else" in {
-          import scala.concurrent.Future
-          import scala.concurrent.Promise
-          import scala.concurrent.ExecutionContext.Implicits.global
-          import scala.concurrent.duration._
+      }
+      "is lazy with if/else" in {
+        import scala.concurrent.Future
+        import scala.concurrent.Promise
+        import scala.concurrent.ExecutionContext.Implicits.global
+        import scala.concurrent.duration._
 
-          val aPromise = Promise[Boolean]()
-          val a = aPromise.future
+        val aPromise = Promise[Boolean]()
+        val a = aPromise.future
 
-          val bPromise = Promise[String]()
-          val b = bPromise.future
+        val bPromise = Promise[String]()
+        val b = bPromise.future
 
-          val cPromise = Promise[String]()
-          val c = cPromise.future
+        val cPromise = Promise[String]()
+        val c = cPromise.future
 
-          implicit val monad: Monad[Future] = scalaz.std.scalaFuture.futureInstance
+        implicit val monad: Monad[Future] = scalaz.std.scalaFuture.futureInstance
 
-          val f = IdiomBracket.monad[Future, String](if(extract(a)) extract(b) else extract(c))
+        val f = IdiomBracket.monad[Future, String](if(extract(a)) extract(b) else extract(c))
 
-          f.value ==== None
+        f.value ==== None
 
-          aPromise.success(true)
+        aPromise.success(true)
 
-          f.value ==== None
+        f.value ==== None
 
-          bPromise.success("hello")
+        bPromise.success("hello")
 
-          Await.result(f, FiniteDuration(1, TimeUnit.SECONDS)) ==== "hello"
+        Await.result(f, FiniteDuration(1, TimeUnit.SECONDS)) ==== "hello"
+      }
+      "block" in {
+        "1" ! prop { (a: Option[String], foo: String => Option[String], bar: String => String) =>
+          val f = IdiomBracket.monad[Option, String] {
+            val b = foo(extract(a))
+            bar(extract(b))
+          }
+          f ==== Monad[Option].bind(a)(aa => Applicative[Option].map(foo(aa))(bar))
+        }
+        "2" ! prop { (a: Option[String], d: Option[String], foo: String => Option[String], bar: (String, String) => String, biz: String => Option[String]) =>
+          val f = IdiomBracket.monad[Option, String] {
+            val b = foo(extract(a))
+            val c = biz(extract(d))
+            bar(extract(b), extract(c))
+          }
+          f ==== {
+            val b = Applicative[Option].map(a)(foo)
+            val c = Applicative[Option].map(d)(biz)
+            Applicative[Option].apply2(Monad[Option].join(b),Monad[Option].join(c))(bar)
+          }
         }
       }
     }

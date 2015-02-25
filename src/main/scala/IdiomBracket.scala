@@ -113,11 +113,13 @@ object IdiomBracket {
       expr match {
         case fun: Apply if isExtractFunction(fun) =>
           val extracted = fun.args(0)
-          // directly nested extracts: extract(extract(a))
-          if (isExtractFunction(extracted)) c.abort(c.enclosingPosition, "It is not possible to lift directly nested extracts")
-          // indirectly nested extracts: extract(do(extract(a))); this is fine but we need to be monadic
           if (hasExtracts(extracted) && !monadic) c.abort(c.enclosingPosition, "It is not possible to lift nested extracts in non monadic context")
-          if (hasExtracts(extracted) && monadic) {
+          // directly nested extracts: extract(extract(a))
+          if (isExtractFunction(extracted)) {
+            val lifted = lift(extracted)._1
+            (q"$applicativeInstance.join($lifted)",1)
+          }
+          else if (hasExtracts(extracted)) {
             lift(extracted, true)
           } else {
             (extracted, 1)
@@ -327,12 +329,15 @@ object IdiomBracket {
       val idiomBracketPath = "com.github.jedesah.IdiomBracket"
       val extractMethodNames = List(s"$idiomBracketPath.extract", s"$idiomBracketPath.auto.extract")
       tree match {
-        case extract if extract.symbol != null && extractMethodNames.contains(extract.symbol.fullName) => true
+        case extract: Apply if extract.symbol != null && extractMethodNames.contains(extract.symbol.fullName) => true
         case q"com.github.jedesah.IdiomBracket.extract($_)" => true
         case _ => false
       }
     }
 
+    def isDoubleExtract(expr: u.Tree) = if (isExtractFunction(expr)) isExtractFunction(expr.asInstanceOf[Apply].args(0)) else false
+
+    if (ast.exists(isDoubleExtract)) c.abort(c.enclosingPosition, "It is not possible to lift directly nested extracts")
     val (result, transformArity) = lift(ast)
     if (transformArity == 0) None else Some(result)
   }

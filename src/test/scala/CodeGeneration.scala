@@ -245,6 +245,20 @@ class CodeGeneration extends Specification {
                       """
       compareAndPrintIfDifferent(transformed, expected)
     }.pendingUntilFixed("It's quite hard to support pattern matching value definitions because of the complex desaguring involved (which happens before the Tree is passed into the macro)")
-
+    "monadic block" in {
+      val ast = q"""
+                   val a: Option[String] = ???
+                   def foo(a: String): Option[String] = ???
+                   def bar(a: String): String = ???
+                   val b = foo(extract(a))
+                   bar(extract(b))
+                """
+      val transformed = transformLast(ast, monadic = true, nbLines = 2)
+      val expected = q"""
+                      val b = App.map(a)(foo)
+                      App.map(App.join(b))(bar)
+                      """
+      compareAndPrintIfDifferent(transformed, expected)
+    }
   }
 }
