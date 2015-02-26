@@ -34,6 +34,11 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           f ==== Applicative[Option].apply3(Some(a),b,c)(doThing)
         }
       }
+      "function with type parameters" ! prop { (a: Option[String], fooImpl: String => String, b: String) =>
+        def foo[A](a: A, b: String): String = fooImpl(b) + a
+        val f = IdiomBracket[Option, String](foo(b, extract(a)))
+        f ==== Applicative[Option].map(a)(foo(b, _))
+      }
     }
     "method invocation" in {
       "no extract in LHS" ! prop { (a: String, b: Option[Int], c: Option[Int]) =>
