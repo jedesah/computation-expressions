@@ -34,6 +34,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           f ==== Applicative[Option].apply3(Some(a),b,c)(doThing)
         }
       }
+      tag("type parameter")
       "function with type parameters" ! prop { (a: Option[String], fooImpl: String => String, b: String) =>
         def foo[A](a: A, b: String): String = fooImpl(b) + a
         val f = IdiomBracket[Option, String](foo(b, extract(a)))
@@ -58,6 +59,11 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           val f = IdiomBracket[Option, Int](doThing(extract(a), extract(d)).indexOf(b, extract(c)))
           f ==== Applicative[Option].apply3(a, c, d)((aa, cc, dd) => doThing(aa, dd).indexOf(b, cc))
         }
+      }
+      tag("type parameter")
+      "method with type parameters" ! prop { (a: Option[Either[String, Int]]) =>
+        val f = IdiomBracket[Option, Int](extract(a).fold(_.length,identity))
+        f ==== Applicative[Option].map(a)(_.fold(_.length, identity))
       }
     }
     "extract buried" in {

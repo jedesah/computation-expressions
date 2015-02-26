@@ -246,6 +246,12 @@ object IdiomBracket {
           case Select(ref, methodName) =>
             namesWithReplaced += ((name, ref))
             Select(Ident(name), methodName)
+          case innerApp: TypeApply =>
+            // I am going to assume for now that a TypeApply only has a Select as a function
+            val Select(ref, methodName) = innerApp.fun
+            namesWithReplaced += ((name, ref))
+            Select(Ident(name), methodName)
+            // Here we are handling currying
           case innerApp: Apply =>
             namesWithReplaced += ((name, innerApp))
             Select(Ident(name), TermName("apply"))
