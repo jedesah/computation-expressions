@@ -187,7 +187,7 @@ object IdiomBracket {
             val (newX2, argsWithWhatTheyReplace2) =
               if (hasExtracts(x2)) {
                 val paramName = TermName(c.freshName())
-                (Ident(paramName), (List(paramName,x2)))
+                (Ident(paramName), (List((paramName,x2))))
               }
               else (x2, (Nil))
             (cq"$newX1 => $newX2", argsWithWhatTheyReplace1 ++ argsWithWhatTheyReplace2)

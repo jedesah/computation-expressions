@@ -211,6 +211,20 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         else
           f == None
       }
+      "with extract in RHS" ! prop { a: Option[String] =>
+        val f = IdiomBracket[Option, String] {
+          List(1,2,3) match {
+            case Nil => extract(a) + "!"
+            case _ => "hello"
+          }
+        }
+        f ==== Applicative[Option].map(a){ aa =>
+          List(1,2,3) match {
+            case Nil => aa + "!"
+            case _ => "hello"
+          }
+        }
+      }
       "with stable identifier in case statement" ! prop { (a: Option[String], b: Option[String]) =>
         val f = IdiomBracket[Option, String] {
           val bb = extract(b)
