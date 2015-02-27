@@ -132,6 +132,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
 
         Await.result(f, FiniteDuration(1, TimeUnit.SECONDS)) ==== "hello"
       }
+      tag("block")
       "block" in {
         "1" ! prop { (a: Option[String], foo: String => Option[String], bar: String => String) =>
           val f = IdiomBracket.monad[Option, String] {
@@ -154,6 +155,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         }
       }
     }
+    tag("block")
     "block" in {
       "simple" ! prop { (a: Option[String], otherThing: String => String) =>
         val f = IdiomBracket[Option, String] {
