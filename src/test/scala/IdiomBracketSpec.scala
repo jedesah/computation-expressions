@@ -194,7 +194,30 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           first + second
         }
       }*/
+      tag("match")
+      "with match" ! prop { (namesOption: Option[Map[String, String]], userLocale: String) =>
+        sealed trait LocationType
+        case class City(city: Option[String]) extends LocationType
+        case class Country(countryName: Option[String]) extends LocationType
+        case object State extends LocationType
+        val loc: LocationType = City(None)
+        // 'EN-US' will be "normalized" to 'en'
+        def normalize(locale: String) = locale.take(2).toLowerCase
+        val f = IdiomBracket.monad[Option, LocationType] {
+          val names = extract(namesOption)
+          val normalizedMap = names.map { case (key, value) => (normalize(key), value)}
+          val name = extract(normalizedMap.get(normalize(userLocale)).orElse(normalizedMap.get("en")))
+          // If there is no user requested locale or english, leave Location unchanged
+          loc match {
+            case loc:City => loc.copy(city = Some(name))
+            case loc:Country => loc.copy(countryName = Some(name))
+            case _ => loc
+          }
+        }
+        f ==== ???
+      }
     }
+    tag("match")
     "match" in {
       "with extract in LHS" ! prop { (a: Option[String]) =>
         val f = IdiomBracket[Option, String] {
