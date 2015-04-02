@@ -362,6 +362,17 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         val f = IdiomBracket[Option, String](test(extract(a), extract(b))("foo", "bar"))
         f == Applicative[Option].apply2(a, b)(test(_,_)("foo", "bar"))
       }
+      "2 currys with extracts in both" ! prop { (a: Option[String], b: Option[String], test: String => String => String) =>
+        val f = IdiomBracket[Option, String](test(extract(a))(extract(b)))
+        f ==== Applicative[Option].apply2(a, b)(test(_)(_))
+      }
+     /*"2 currys with implicit" ! prop { (a: Option[String], b: String => String, c: String) =>
+        trait Proof
+        def test(fst: String)(implicit snd: Proof): String = b(fst)
+        implicit val myProof = new Proof {}
+        val f = IdiomBracket[Option, String](test(extract(a)))
+        f ==== Apply[Option].map(a)(test)
+      }*/
     }
     "with tuples" ! prop { (a: Option[String], b: Option[String], test: String => String) =>
       val f = IdiomBracket[Option,(String,String)]{(test(extract(a)), extract(b))}
