@@ -196,7 +196,7 @@ class CodeGeneration extends Specification {
               """
       val transformed = transformLast(ast)
       val expected = q"""
-                       App.map(App.map(a)(test))((x1) => x1("foo"))
+                       App.map(a)(x2 => test(x2)("foo"))
                     """
       compareAndPrintIfDifferent(transformed, expected, compareString = true)
     }

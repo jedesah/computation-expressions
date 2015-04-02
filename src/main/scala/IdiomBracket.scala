@@ -264,8 +264,15 @@ object IdiomBracket {
             Select(Ident(name), methodName)
             // Here we are handling currying
           case innerApp: Apply =>
-            namesWithReplaced += ((name, innerApp))
-            Ident(name)
+            // test(extract(a))("foo", "bar") => App.map(a)(x1 => test(x1)("foo", "bar"))
+            if (app.args.forall(!hasExtracts(_))) {
+              val (newAst, args) = replaceExtractWithRefApply(innerApp)
+              return (Apply(newAst, app.args), args)
+            }
+            else {
+              namesWithReplaced += ((name, innerApp))
+              Ident(name)
+            }
         }
       } else app.fun
       val newArgs = app.args.map { arg =>
