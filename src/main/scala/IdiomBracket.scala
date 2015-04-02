@@ -265,7 +265,7 @@ object IdiomBracket {
             // Here we are handling currying
           case innerApp: Apply =>
             namesWithReplaced += ((name, innerApp))
-            Select(Ident(name), TermName("apply"))
+            Ident(name)
         }
       } else app.fun
       val newArgs = app.args.map { arg =>
