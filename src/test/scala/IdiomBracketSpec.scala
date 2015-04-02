@@ -350,9 +350,9 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
       }
     }
     "with currying" in {
-      "2 currys with one param" ! prop { (a: Option[String], test: String => String => String) =>
-        val f = IdiomBracket[Option, String](test(extract(a))("foo"))
-        f == Applicative[Option].map(a)(test(_)("foo"))
+      "2 currys with one param" ! prop { (a: Option[String], test: String => String => String, c: String) =>
+        val f = IdiomBracket[Option, String](test(extract(a))(c))
+        f == Applicative[Option].map(a)(test(_)(c))
       }
       "2 currys with one two params" ! prop { (a: Option[String], b: Option[String], test: (String, String) => String => String) =>
         val f = IdiomBracket[Option, String](test(extract(a), extract(b))("foo"))
