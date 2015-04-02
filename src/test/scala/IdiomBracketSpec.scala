@@ -194,7 +194,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           first + second
         }
       }*/
-      tag("match")
+      /*tag("match")
       "with match" ! prop { (namesOption: Option[Map[String, String]], userLocale: String) =>
         sealed trait LocationType
         case class City(city: Option[String]) extends LocationType
@@ -215,7 +215,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           }
         }
         f ==== ???
-      }
+      }*/
     }
     tag("match")
     "match" in {
