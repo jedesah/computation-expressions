@@ -78,7 +78,7 @@ class CodeGeneration extends Specification {
                     App.apply2(
                       App.apply2(
                         a,
-                        App.map(c)(x5 => x5.toString())
+                        App.map(c)(x3 => x3.toString())
                       )(doThing),
                       c
                     )((x1, x2) => x1.indexOf(b,x2))

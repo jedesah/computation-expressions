@@ -142,8 +142,19 @@ object IdiomBracket {
           val param = q"val $name: $tpt"
           wrapWithApply(q"{abbgg => $newExpr; ???}", List(arg))*/
         case app: Apply =>
-          val (ref, args) = replaceExtractWithRefApply(app)
-          wrapInApply(ref, args.map(lift(_)._1))
+          val (lambda, argsWithExtracts) =
+            // This is handling the case where all the arguments need to be extracted so to produce the following transformation
+            // test(extract(a)) => App.map(a)(test)
+            if (app.fun.isInstanceOf[Ident] && app.args.forall(hasExtracts))
+              (app.fun, app.args)
+            // Otherwise we need to go case by case for each argument and see if we need to extract it
+            else {
+              val (transformedApply, replacements) = replaceExtractWithRefApply(app)
+              // Names are the nam
+              val (lambdaArgumentNames, argsWithExtracts) = replacements.unzip
+              (createFunction(transformedApply,lambdaArgumentNames), argsWithExtracts)
+            }
+          wrapInApply(lambda, argsWithExtracts.map(lift(_)._1))
           // Not sure yet how to handle case with direct nested extracts
           // Currently will error because of check in first case
           /*else {
@@ -238,7 +249,7 @@ object IdiomBracket {
       Function(lhs, rhs)
     }
 
-    def replaceExtractWithRefApply(app: u.Apply): (u.Tree, List[u.Tree]) = {
+    def replaceExtractWithRefApply(app: u.Apply): (u.Tree, List[(u.TermName, u.Tree)]) = {
       val namesWithReplaced = ListBuffer[(u.TermName, u.Tree)]()
       val newFun = if (hasExtracts(app.fun)) {
         val name = TermName(c.freshName())
@@ -264,12 +275,7 @@ object IdiomBracket {
           Ident(name)
         } else arg
       }
-      if (namesWithReplaced.toList.size == app.args.size && app.fun.isInstanceOf[Ident]) (app.fun, app.args)
-      else {
-        val lhs = namesWithReplaced.toList.unzip._1.map(name => ValDef(Modifiers(Flag.PARAM | Flag.SYNTHETIC), name, TypeTree(), EmptyTree))
-        val rhs = Apply(newFun, newArgs)
-        (Function(lhs, rhs), namesWithReplaced.toList.unzip._2)
-      }
+      (Apply(newFun, newArgs), namesWithReplaced.toList)
     }
 
     def replaceExtractWithRefIf(ifElse: u.If): (u.Tree, Map[u.TermName,u.Tree]) = {
