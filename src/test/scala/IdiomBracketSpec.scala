@@ -264,6 +264,19 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         )
         f == expected
       }
+      "monadic" ! prop { (a: Option[String], b: Option[String], c: Option[String], foo: String => String, bar: String => String) =>
+        val f = IdiomBracket.monad[Option, String] {
+          extract(a) match {
+            case "" => foo(extract(b))
+            case _ => bar(extract(c))
+          }
+        }
+        val expected = Monad[Option].bind(a){
+          case "" => Apply[Option].map(b)(foo)
+          case _ => Apply[Option].map(c)(bar)
+        }
+        f ==== expected
+      }.pendingUntilFixed("Implement monadic match transformation")
     }
     "if statement" in {
       "extract in condition expression" ! prop { (a: Option[String]) =>
