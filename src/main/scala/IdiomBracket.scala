@@ -192,8 +192,14 @@ object IdiomBracket {
         }
         // TODO: Figure out why unchanged case pattern seems to go bonky in macro
         case Match(expr, cases) =>
-          if (/*monadic*/false) {
-            ???
+          // My current implementation is going to assume there is no stable identifier in the pattern matches
+          if (monadic && cases.forall{case cq"$x1 => $wtv" => !hasExtracts(x1)}) {
+            val newCases = cases.map{case cq"$wtv => $x2" => cq"$wtv => ${lift(x2)._1}"}
+            val liftedExpr = lift(expr)._1
+            val exprName = TermName(c.freshName())
+            val newExpr = Ident(exprName)
+            val function = createFunction(q"$newExpr match { case ..$newCases}", List(exprName))
+            (q"$applicativeInstance.bind($liftedExpr)($function)",1)
           } else {
             val (tCases, argsWithWhatTheyReplace: List[List[(u.TermName, u.Tree)]]@unchecked) = cases.map { case cq"$x1 => $x2" =>
               val (newX1, argsWithWhatTheyReplace1) = replaceExtractsWithRef(x1, insidePatternMatch = true)

@@ -285,7 +285,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           case _ => Apply[Option].map(c)(bar)
         }
         f ==== expected
-      }.pendingUntilFixed("Implement monadic match transformation")
+      }
     }
     "if statement" in {
       "extract in condition expression" ! prop { (a: Option[String]) =>
