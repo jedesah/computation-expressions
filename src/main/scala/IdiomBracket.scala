@@ -128,31 +128,31 @@ object IdiomBracket {
             (extracted, 1)
           }
         case _ if !hasExtracts(expr) => (q"$applicativeInstance.pure($expr)", 1)
-        // I cannot get this to work for the life of me.
-        // It's supposed to detect if there is only one extract a just map over it.
-        // not need to know the exact structure, but it leads to widespread compiler crashing on macro expansion
-        /*case _ if nbExtracts(expr) == 1 =>
-          val (newExpr, replaced) = replaceExtractWithRefDebug(expr, insidePatternMatch = false)
+        // An expression of the form:
+        // a match { case "bar" => extract(a); case _ => extract(b) }
+        // can be rewritten simply as
+        // a match { case "bar" => a; case _ => b }
+        // no need to include the match within the mapping
+        // This has the added benefit in the case of the Future monad of not blocking if we fall into a case pattern
+        // that does not depend on a Future
+        case Match(expr, cases) if !hasExtracts(expr) && cases.forall{ case cq"$x1 => $anything" => !hasExtracts(x1)} =>
+            val newCases = cases.map{ case cq"$wtv => $x2" => cq"$wtv => ${lift(x2)._1}"}
+            (Match(expr, newCases), 1)
+        // This is handling the case where all the arguments need to be extracted so to produce the following transformation
+        // test(extract(a)) => App.map(a)(test)
+        case Apply(ident@Ident(_), args) if args.forall(hasExtracts) => wrapInApply(ident, args.map(lift(_)._1))
+        case _ if nbExtracts(expr) == 1 =>
+          val (newExpr, replaced) = replaceExtractsWithRef(expr, insidePatternMatch = false)
           val List((name, arg)) = replaced
-          //val lambda = createLambda(newExpr, names)
-          //wrapWithApply(lambda, args)
           val liftedArg = lift(arg)._1
-          val tpt = tq""
-          val param = q"val $name: $tpt"
-          wrapWithApply(q"{abbgg => $newExpr; ???}", List(arg))*/
+          val lambda = createFunction(newExpr, List(name))
+          wrapInApply(lambda, List(liftedArg))
         case app: Apply =>
-          val (lambda, argsWithExtracts) =
-            // This is handling the case where all the arguments need to be extracted so to produce the following transformation
-            // test(extract(a)) => App.map(a)(test)
-            if (app.fun.isInstanceOf[Ident] && app.args.forall(hasExtracts))
-              (app.fun, app.args)
-            // Otherwise we need to go case by case for each argument and see if we need to extract it
-            else {
-              val (transformedApply, replacements) = replaceExtractWithRefApply(app)
-              // Names are the nam
-              val (lambdaArgumentNames, argsWithExtracts) = replacements.unzip
-              (createFunction(transformedApply,lambdaArgumentNames), argsWithExtracts)
-            }
+          // we need to go case by case for each argument and see if we need to extract it
+          val (transformedApply, replacements) = replaceExtractWithRefApply(app)
+          // Names are the nam
+          val (lambdaArgumentNames, argsWithExtracts) = replacements.unzip
+          val lambda = createFunction(transformedApply,lambdaArgumentNames)
           wrapInApply(lambda, argsWithExtracts.map(lift(_)._1))
           // Not sure yet how to handle case with direct nested extracts
           // Currently will error because of check in first case
@@ -192,18 +192,7 @@ object IdiomBracket {
         }
         // TODO: Figure out why unchanged case pattern seems to go bonky in macro
         case Match(expr, cases) =>
-          // An expression of the form:
-          // a match { case "bar" => extract(a); case _ => extract(b) }
-          // can be rewritten simply as
-          // a match { case "bar" => a; case _ => b }
-          // no need to include the match within the mapping
-          // This has the added benefit in the case of the Future monad of not blocking if we fall into a case pattern
-          // that does not depend on a Future
-          if (!hasExtracts(expr) && cases.forall{ case cq"$x1 => $anything" => !hasExtracts(x1)}) {
-            val newCases = cases.map{ case cq"$wtv => $x2" => cq"$wtv => ${lift(x2)._1}"}
-            (Match(expr, newCases), 1)
-          }
-          else if (/*monadic*/false) {
+          if (/*monadic*/false) {
             ???
           } else {
             val (tCases, argsWithWhatTheyReplace: List[List[(u.TermName, u.Tree)]]@unchecked) = cases.map { case cq"$x1 => $x2" =>
@@ -323,18 +312,22 @@ object IdiomBracket {
      */
     def replaceExtractsWithRef(expr: u.Tree, insidePatternMatch: Boolean): (u.Tree, (List[(u.TermName,u.Tree)])) = {
       val namesWithReplaced = ListBuffer[(u.TermName, u.Tree)]()
-      object ReplaceExtract extends Transformer {
-        override def transform(tree: u.Tree): u.Tree = tree match {
-          case fun: Apply if isExtractFunction(fun) =>
-            val name = TermName(c.freshName())
-            namesWithReplaced += ((name, fun))
-            if (insidePatternMatch) q"`$name`" else Ident(name)
-          case cq"$x1 => $x2" => cq"${replaceExtractsWithRef(x1, true)} => ${replaceExtractsWithRef(x2, false)}"
-          case _ => super.transform(tree)
+      def impl(expr: u.Tree, insidePatternMatch: Boolean): u.Tree = {
+        object ReplaceExtract extends Transformer {
+          override def transform(tree: u.Tree): u.Tree = tree match {
+            case fun: Apply if isExtractFunction(fun) =>
+              val name = TermName(c.freshName())
+              namesWithReplaced += ((name, fun))
+              if (insidePatternMatch) q"`$name`" else Ident(name)
+            case cq"$x1 => $x2" =>
+              assert(!insidePatternMatch)
+              cq"${impl(x1, true)} => ${impl(x2, false)}"
+            case _ => super.transform(tree)
+          }
         }
+        ReplaceExtract.transform(expr)
       }
-      val result = ReplaceExtract.transform(expr)
-      (result, namesWithReplaced.toList)
+      (impl(expr, insidePatternMatch), namesWithReplaced.toList)
     }
 
     def addExtractR(expr: u.Tree, names: Map[String, Int]): u.Tree = {

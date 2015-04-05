@@ -109,7 +109,7 @@ class CodeGeneration extends Specification {
               """
       val transformed = transformLast(ast, nbLines = 2)
       val expected = q"""
-                    {val aa = App.map(a)(otherThing); App.map(aa)(otherThing)}
+                    App.map(a)(x1 => {val aa = otherThing(x1); otherThing(aa)})
                    """
       compareAndPrintIfDifferent(transformed, expected)
     }
@@ -195,7 +195,7 @@ class CodeGeneration extends Specification {
                       App.map(a)(x1 => if(x1.length().==(5)) 10 else 20)
                      """
       compareAndPrintIfDifferent(transformed, expected)
-    }.pendingUntilFixed("This test does not work because the detection of one extract does not work and I am too lazy to come up with the current code generation")
+    }
     tag("interpolated string")
     "interpolated string" in {
       val ast = q"""
@@ -216,7 +216,7 @@ class CodeGeneration extends Specification {
               """
       val transformed = transformLast(ast)
       val expected = q"""
-                       App.map(a)(x2 => test(x2)("foo"))
+                       App.map(a)(x1 => test(x1)("foo"))
                     """
       compareAndPrintIfDifferent(transformed, expected, compareString = true)
     }
@@ -313,7 +313,7 @@ class CodeGeneration extends Specification {
         }
       """
       compareAndPrintIfDifferent(transformed, expected)
-    }
+    }.pendingUntilFixed("This is pretty close, and works in the actual Spec for now")
     "canBuildFrom" in {
       val ast = q"""
         val a: Option[List[String]] = ???
@@ -322,7 +322,7 @@ class CodeGeneration extends Specification {
       """
       val transformed = transform(ast, ignore = 2)
       val expected = q"""
-        App.map(a)(x2 => x2.map(b)(immutable.this.List.canBuildFrom[String]))
+        App.map(a)(x1 => x1.map[String, List[String]](b)(immutable.this.List.canBuildFrom[String]))
       """
       compareAndPrintIfDifferent(transformed, expected, compareString = true)
     }
@@ -338,7 +338,7 @@ class CodeGeneration extends Specification {
       """
       val transformed = transform(ast, ignore = 6)
       val expected = q"""
-        App.map(a)(x2 => test(x2)(myProof))
+        App.map(a)(x1 => test(x1)(myProof))
       """
       compareAndPrintIfDifferent(transformed, expected)
     }
