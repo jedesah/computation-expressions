@@ -307,7 +307,8 @@ object IdiomBracket {
     }
 
     /**
-     *
+     * It is smart enough to detect extracts that are on the left hand side of a pattern match and do the appropriate
+     * thing which is to make sure the identifier replacing the expression is a "stable" identifier.
      * @param expr The expression from which to replace any extract with an identifier
      * @param insidePatternMatch Whether we are inside of a pattern match. If we are inside a pattern match, we need
      *                           to use a stable identifier in order for the transformed code to have the same meaning
@@ -327,6 +328,7 @@ object IdiomBracket {
             val name = TermName(c.freshName())
             namesWithReplaced += ((name, fun))
             if (insidePatternMatch) q"`$name`" else Ident(name)
+          case cq"$x1 => $x2" => cq"${replaceExtractsWithRef(x1, true)} => ${replaceExtractsWithRef(x2, false)}}"
           case _ => super.transform(tree)
         }
       }
