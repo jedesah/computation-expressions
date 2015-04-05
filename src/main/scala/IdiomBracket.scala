@@ -202,11 +202,11 @@ object IdiomBracket {
             }.unzip
             val (names, args) = argsWithWhatTheyReplace.flatten.unzip
             // Add the expression to the arguments being transformed if it contains an extract
-            val (allArgs, lhs, allNames) = if (hasExtracts(expr)) {
-              val lhsName = TermName(c.freshName())
-              (expr :: args, Ident(lhsName), lhsName :: names)
+            val (allArgs, newExpr, allNames) = if (hasExtracts(expr)) {
+              val exprName = TermName(c.freshName())
+              (expr :: args, Ident(exprName), exprName :: names)
             } else (args, expr, names)
-            val function = createFunction(q"$lhs match { case ..$tCases}", allNames)
+            val function = createFunction(q"$newExpr match { case ..$tCases}", allNames)
             wrapInApply(function, allArgs.map(lift(_)._1))
           }
         case ifExpr@If(expr, trueCase, falseCase) =>
