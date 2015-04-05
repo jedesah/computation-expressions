@@ -329,7 +329,7 @@ object IdiomBracket {
             val name = TermName(c.freshName())
             namesWithReplaced += ((name, fun))
             if (insidePatternMatch) q"`$name`" else Ident(name)
-          case cq"$x1 => $x2" => cq"${replaceExtractsWithRef(x1, true)} => ${replaceExtractsWithRef(x2, false)}}"
+          case cq"$x1 => $x2" => cq"${replaceExtractsWithRef(x1, true)} => ${replaceExtractsWithRef(x2, false)}"
           case _ => super.transform(tree)
         }
       }
