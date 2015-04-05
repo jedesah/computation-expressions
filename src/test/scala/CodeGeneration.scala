@@ -30,6 +30,7 @@ class CodeGeneration extends Specification {
     }
   }
 
+  //TODO: Remove code duplication here
   def transformLast(block: reflect.runtime.universe.Tree, nbLines: Int = 1, monadic: Boolean = false) = {
     val extractImport = q"import com.github.jedesah.IdiomBracket.extract"
     val tb = cm.mkToolBox()
