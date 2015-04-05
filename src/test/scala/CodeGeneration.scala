@@ -306,11 +306,11 @@ class CodeGeneration extends Specification {
         val names = namesOption
         val normalizedMap = App.map(names)(x1 => x1.map { case (key, value) => (normalize(key), value)})
         val name = App.bind(normalizedMap)(x2 => x2.get(normalize(userLocale)).orElse(normalizeMap.get("en")))
-        App.map(name)(x3 => loc match {
-          case loc: City => loc.copy(city = Some(x3))
-          case loc: Country => loc.copy(countryName = Some(x3))
-          case _ => loc
-        })
+        loc match {
+          case loc: City => App.map(name)(x3 => loc.copy(city = Some(x3)))
+          case loc: Country => App.map(name)(x4 => loc.copy(countryName = Some(x4)))
+          case _ => App.pure(loc)
+        }
       """
       compareAndPrintIfDifferent(transformed, expected)
     }

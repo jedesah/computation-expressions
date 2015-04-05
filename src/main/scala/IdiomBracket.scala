@@ -192,7 +192,18 @@ object IdiomBracket {
         }
         // TODO: Figure out why unchanged case pattern seems to go bonky in macro
         case Match(expr, cases) =>
-          if (/*monadic*/false) {
+          // An expression of the form:
+          // a match { case "bar" => extract(a); case _ => extract(b) }
+          // can be rewritten simply as
+          // a match { case "bar" => a; case _ => b }
+          // no need to include the match within the mapping
+          // This has the added benefit in the case of the Future monad of not blocking if we fall into a case pattern
+          // that does not depend on a Future
+          if (!hasExtracts(expr) && cases.forall{ case cq"$x1 => $anything" => !hasExtracts(x1)}) {
+            val newCases = cases.map{ case cq"$wtv => $x2" => cq"$wtv => ${lift(x2)._1}"}
+            (Match(expr, newCases), 1)
+          }
+          else if (/*monadic*/false) {
             ???
           } else {
             val (tCases, argsWithWhatTheyReplace: List[List[(u.TermName, u.Tree)]]@unchecked) = cases.map { case cq"$x1 => $x2" =>

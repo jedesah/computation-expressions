@@ -251,12 +251,11 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
             case _ => "hello"
           }
         }
-        f ==== Applicative[Option].map(a){ aa =>
-          List(1,2,3) match {
-            case Nil => aa + "!"
-            case _ => "hello"
-          }
+        val expected = List(1,2,3) match {
+          case Nil => Applicative[Option].map(a)(_ + "!")
+          case _ => Applicative[Option].pure("hello")
         }
+        f ==== expected
       }
       "with stable identifier in case statement" ! prop { (a: Option[String], b: Option[String]) =>
         val f = IdiomBracket[Option, String] {
