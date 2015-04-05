@@ -212,6 +212,7 @@ object IdiomBracket {
               (cq"$newX1 => $newX2", argsWithWhatTheyReplace1 ++ argsWithWhatTheyReplace2)
             }.unzip
             val (names, args) = argsWithWhatTheyReplace.flatten.unzip
+            // Add the expression to the arguments being transformed if it contains an extract
             val (allArgs, lhs, allNames) = if (hasExtracts(expr)) {
               val lhsName = TermName(c.freshName())
               (expr :: args, Ident(lhsName), lhsName :: names)
