@@ -195,7 +195,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         }
       }*/
       tag("match")
-      "with match" ! prop { (namesOption: Option[Map[String, String]], userLocale: String) =>
+      "with match (iGraph example)" ! prop { (namesOption: Option[Map[String, String]], userLocale: String) =>
         sealed trait LocationType
         case class City(city: Option[String]) extends LocationType
         case class Country(countryName: Option[String]) extends LocationType
@@ -214,7 +214,17 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
             case _ => loc
           }
         }
-        f ==== ???
+        val expected = {
+          val names = namesOption
+          val normalizedMap = Applicative[Option].map(names)(x1 => x1.map { case (key, value) => (normalize(key), value)})
+          val name = Monad[Option].bind(normalizedMap)(x1 => x1.get(normalize(userLocale)).orElse(x1.get("en")))
+          loc match {
+            case loc: City => Applicative[Option].map(name)(x1 => loc.copy(city = Some(x1)))
+            case loc: Country => Applicative[Option].map(name)(x1 => loc.copy(countryName = Some(x1)))
+            case _ => Applicative[Option].pure(loc)
+          }
+        }
+        f ==== expected
       }
     }
     tag("match")
