@@ -313,7 +313,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
       case class NotFound(message: String)
       def nameOfMonth(num: Int): Option[String] = None
 
-      val f = IdiomBracket {
+      val f = IdiomBracket[Option, Any] {
         extract(optionDOY) match {
           case date(month, day) =>
             Ok(s"It’s ${extract(nameOfMonth(month.toInt))}!")
