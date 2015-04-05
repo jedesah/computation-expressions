@@ -113,56 +113,75 @@ class CodeGeneration extends Specification {
       compareAndPrintIfDifferent(transformed, expected)
     }
     tag("match")
-    "of match with extract in LHS" in {
-      "1" in {
+    "of match" in {
+      "extract in RHS" in {
         val ast = q"""
-                  val a: Option[String] = ???
-                  extract(a) match { case "hello" => "h" }
-                """
+                     val a: Option[String] = ???
+                     List(1,2,3) match {
+                        case Nil => extract(a) + "!"
+                        case _ => "hello"
+                     }
+                  """
         val transformed = transformLast(ast)
         val expected = q"""
+                           App.map(a)(x1 => immutable.this.List.apply[Int](1,2,3) match {
+                              case immutable.this.Nil => x1.+("!")
+                              case _ => "hello"
+                            })
+                  """
+        compareAndPrintIfDifferent(transformed, expected)
+      }.pendingUntilFixed("Fails because Scala sucks at comparing ASTs")
+      "with extract in LHS" in {
+        "1" in {
+          val ast = q"""
+                    val a: Option[String] = ???
+                    extract(a) match { case "hello" => "h" }
+                  """
+          val transformed = transformLast(ast)
+          val expected = q"""
+                        App.map(a)(((x1) => x1 match {
+                          case "hello" => "h"
+                        }))
+                       """
+          compareAndPrintIfDifferent(transformed, expected, compareString = false)
+        }
+        "2" in {
+          val ast = q"""
+                  val a: Option[String] = ???
+                  extract(a) match {
+                    case "hello" => "h"
+                    case _ => "e"
+                  }
+                """
+          val transformed = transformLast(ast)
+          val expected = q"""
                       App.map(a)(((x1) => x1 match {
                         case "hello" => "h"
+                        case _ => "e"
                       }))
                      """
-        compareAndPrintIfDifferent(transformed, expected, compareString = false)
-      }
-      "2" in {
-        val ast = q"""
-                val a: Option[String] = ???
-                extract(a) match {
-                  case "hello" => "h"
-                  case _ => "e"
-                }
-              """
-        val transformed = transformLast(ast)
-        val expected = q"""
-                    App.map(a)(((x1) => x1 match {
-                      case "hello" => "h"
-                      case _ => "e"
-                    }))
-                   """
-        compareAndPrintIfDifferent(transformed, expected, compareString = false)
-      }
-      "with stable identifier referring to extracted val" in {
-        val ast = q"""
-                val a: Option[String] = ???
-                val b: Option[String] = ???
-                val bb = extract(b)
-                extract(a) match {
-                  case `bb` => "h"
-                  case _ => "e"
-                }
-              """
-        val transformed = transformLast(ast, nbLines = 2)
-        val expected = q"""
-                    val bb = b
-                    App.apply2(a,bb)((x2,x1) => x2 match {
-                      case `x1` => "h"
-                      case _ => "e"
-                    })
-                   """
-        compareAndPrintIfDifferent(transformed, expected)
+          compareAndPrintIfDifferent(transformed, expected, compareString = false)
+        }
+        "with stable identifier referring to extracted val" in {
+          val ast = q"""
+                  val a: Option[String] = ???
+                  val b: Option[String] = ???
+                  val bb = extract(b)
+                  extract(a) match {
+                    case `bb` => "h"
+                    case _ => "e"
+                  }
+                """
+          val transformed = transformLast(ast, nbLines = 2)
+          val expected = q"""
+                      val bb = b
+                      App.apply2(a,bb)((x2,x1) => x2 match {
+                        case `x1` => "h"
+                        case _ => "e"
+                      })
+                     """
+          compareAndPrintIfDifferent(transformed, expected)
+        }
       }
     }
     "if statement" in {
@@ -258,6 +277,68 @@ class CodeGeneration extends Specification {
                       val b = App.map(a)(foo)
                       App.map(App.join(b))(bar)
                       """
+      compareAndPrintIfDifferent(transformed, expected)
+    }
+    "iGraph options stuff" in {
+      val ast = q"""
+        trait LocationType
+        case class City(city: Option[String]) extends LocationType
+        case class Country(countryName: Option[String]) extends LocationType
+        case object State extends LocationType
+        val loc: LocationType = City(None)
+        // 'EN-US' will be "normalized" to 'en'
+        val userLocale: String = ???
+        def normalize(locale: String) = locale.take(2).toLowerCase
+        val namesOption: Option[Map[String, String]] = ???
+        val names = extract(namesOption)
+        val normalizedMap = names.map { case (key, value) => (normalize(key), value)}
+        val name = extract(normalizedMap.get(normalize(userLocale)).orElse(normalizedMap.get("en")))
+        // If there is no user requested locale or english, leave Location unchanged
+        loc match {
+          case loc:City => loc.copy(city = Some(name))
+          case loc:Country => loc.copy(countryName = Some(name))
+          case _ => loc
+        }
+      """
+      val transformed = transform(ast, monadic = true, ignore = 10)
+      val expected = q"""
+        val names = namesOption
+        val normalizedMap = App.map(names)(x1 => x1.map { case (key, value) => (normalize(key), value)})
+        val name = App.bind(normalizedMap)(x2 => x2.get(normalize(userLocale)).orElse(normalizeMap.get("en")))
+        App.map(name)(x3 => loc match {
+          case loc: City => loc.copy(city = Some(x3))
+          case loc: Country => loc.copy(countryName = Some(x3))
+          case _ => loc
+        })
+      """
+      compareAndPrintIfDifferent(transformed, expected)
+    }
+    "canBuildFrom" in {
+      val ast = q"""
+        val a: Option[List[String]] = ???
+        def b: String => String = ???
+        extract(a).map(b)
+      """
+      val transformed = transform(ast, ignore = 2)
+      val expected = q"""
+        App.map(a)(x2 => x2.map(b)(immutable.this.List.canBuildFrom[String]))
+      """
+      compareAndPrintIfDifferent(transformed, expected, compareString = true)
+    }
+    "implicit currying" in {
+      val ast = q"""
+        val a: Option[String] = ???
+        val b: String => String = ???
+        val c: String = ???
+        trait Proof
+        def test(fst: String)(implicit snd: Proof): String = b(fst)
+        implicit val myProof = new Proof {}
+        test(extract(a))
+      """
+      val transformed = transform(ast, ignore = 6)
+      val expected = q"""
+        App.map(a)(x2 => test(x2)(myProof))
+      """
       compareAndPrintIfDifferent(transformed, expected)
     }
   }

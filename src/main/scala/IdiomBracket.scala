@@ -41,19 +41,18 @@ object IdiomBracket {
   }
 
   def idiomBracket[T: c.WeakTypeTag, F[_]](c: Context)(x: c.Expr[T])(ap: c.Expr[Applicative[F]])(implicit tag: c.WeakTypeTag[F[_]]): c.Expr[F[T]] = {
-    import c.universe._
-    val applicativeInstance = ap.tree
-    val result = transform(c.universe)(ContextSubset(c),x.tree, applicativeInstance, tag.tpe, monadic = false)
-    if (!result.isDefined) c.warning(c.enclosingPosition,merelyLiftedMsg)
-    c.Expr[F[T]](result.getOrElse(q"$applicativeInstance.pure(${x.tree})"))
+    macroImpl(c)(x,ap.tree,tag, monadic = false)
   }
 
   def idiomBracketMonad[T, F[_]](c: Context)(x: c.Expr[T])(m: c.Expr[Monad[F]])(implicit tag: c.WeakTypeTag[F[_]]): c.Expr[F[T]] = {
+    macroImpl(c)(x,m.tree, tag, monadic = true)
+  }
+
+  def macroImpl[T, F[_]](c: Context)(x: c.Expr[_], instance: c.universe.Tree, tag: c.WeakTypeTag[_], monadic: Boolean) = {
     import c.universe._
-    val monadInstance = m.tree
-    val result = transform(c.universe)(ContextSubset(c),x.tree, monadInstance, tag.tpe, monadic = true)
+    val result = transform(c.universe)(ContextSubset(c),x.tree, instance, tag.tpe, monadic)
     if (!result.isDefined) c.warning(c.enclosingPosition, merelyLiftedMsg)
-    c.Expr[F[T]](result.getOrElse(q"$monadInstance.pure(${x.tree})"))
+    c.Expr[F[T]](c.untypecheck(result.getOrElse(q"$instance.pure(${x.tree})")))
   }
 
   def controlImpl(c: Context)(x: c.Expr[String]): c.Expr[Option[String]] = {
@@ -193,23 +192,22 @@ object IdiomBracket {
         }
         // TODO: Figure out why unchanged case pattern seems to go bonky in macro
         case Match(expr, cases) =>
-          val (tCases, argsWithWhatTheyReplace: List[List[(u.TermName, u.Tree)]]@unchecked) = cases.map { case cq"$x1 => $x2" =>
-            val (newX1, argsWithWhatTheyReplace1) = replaceExtractWithRef(x1, insidePatternMatch = true)
-            val (newX2, argsWithWhatTheyReplace2) =
-              if (hasExtracts(x2)) {
-                val paramName = TermName(c.freshName())
-                (Ident(paramName), (List((paramName,x2))))
-              }
-              else (x2, (Nil))
-            (cq"$newX1 => $newX2", argsWithWhatTheyReplace1 ++ argsWithWhatTheyReplace2)
-          }.unzip
-          val (names, args) = argsWithWhatTheyReplace.flatten.unzip
-          val (allArgs, lhs, allNames) = if (hasExtracts(expr)) {
-            val lhsName = TermName(c.freshName())
-            (expr :: args, Ident(lhsName), lhsName :: names)
-          } else (args, expr, names)
-          val function = createFunction(q"$lhs match { case ..$tCases}", allNames)
-          wrapInApply(function, allArgs.map(lift(_)._1))
+          if (/*monadic*/false) {
+            ???
+          } else {
+            val (tCases, argsWithWhatTheyReplace: List[List[(u.TermName, u.Tree)]]@unchecked) = cases.map { case cq"$x1 => $x2" =>
+              val (newX1, argsWithWhatTheyReplace1) = replaceExtractsWithRef(x1, insidePatternMatch = true)
+              val (newX2, argsWithWhatTheyReplace2) = replaceExtractsWithRef(x2, insidePatternMatch = false)
+              (cq"$newX1 => $newX2", argsWithWhatTheyReplace1 ++ argsWithWhatTheyReplace2)
+            }.unzip
+            val (names, args) = argsWithWhatTheyReplace.flatten.unzip
+            val (allArgs, lhs, allNames) = if (hasExtracts(expr)) {
+              val lhsName = TermName(c.freshName())
+              (expr :: args, Ident(lhsName), lhsName :: names)
+            } else (args, expr, names)
+            val function = createFunction(q"$lhs match { case ..$tCases}", allNames)
+            wrapInApply(function, allArgs.map(lift(_)._1))
+          }
         case ifExpr@If(expr, trueCase, falseCase) =>
           if (!monadic) {
             val (withExtractsRemoved, substitutions) = replaceExtractWithRefIf(ifExpr)
@@ -310,7 +308,7 @@ object IdiomBracket {
      *         Pitfall: It would be tempting to remove the extract here but removing the extract should be left
      *         to more specialized code because there are few corner cases to consider.
      */
-    def replaceExtractWithRef(expr: u.Tree, insidePatternMatch: Boolean): (u.Tree, (List[(u.TermName,u.Tree)])) = {
+    def replaceExtractsWithRef(expr: u.Tree, insidePatternMatch: Boolean): (u.Tree, (List[(u.TermName,u.Tree)])) = {
       val namesWithReplaced = ListBuffer[(u.TermName, u.Tree)]()
       object ReplaceExtract extends Transformer {
         override def transform(tree: u.Tree): u.Tree = tree match {
