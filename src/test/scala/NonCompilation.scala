@@ -21,11 +21,7 @@ class NonCompilation extends Specification {
                 doThing(extract(a))
               """
       val tb = cm.mkToolBox()
-      try {
-        tb.compile(ast); 1 ==== 2 // There must be a better way...
-      } catch {
-        case a: ToolBoxError => a.getMessage.contains("`extract` must be enclosed in an `IdiomBracket`") ==== true
-      }
+      tb.compile(ast) must throwA[ToolBoxError]("`extract` must be enclosed in an `IdiomBracket`")
     }
   }
 }
