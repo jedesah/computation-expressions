@@ -2,7 +2,7 @@ package com.github.jedesah
 
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.{currentMirror => cm}
-import scala.tools.reflect.ToolBox
+import scala.tools.reflect.{ToolBoxError, ToolBox}
 
 import org.specs2.mutable._
 import com.github.jedesah.IdiomBracket.ContextSubset
@@ -342,5 +342,48 @@ class CodeGeneration extends Specification {
       """
       compareAndPrintIfDifferent(transformed, expected)
     }
+    "SIP-22 example" in {
+      val ast = q"""
+        val optionDOY: Option[String] = ???
+        val date = "(\\d+)/(\\d+)".r
+        case class Ok(message: String)
+        case class NotFound(message: String)
+        def nameOfMonth(num: Int): Option[String] = None
+        extract (optionDOY) match {
+          case date(month, day) =>
+            Ok(s"It’s $${extract(nameOfMonth(month.toInt))}!")
+          case _ =>
+            NotFound("Not a date, mate!")
+        }
+      """
+      val transformed = transform(ast, ignore = 7, monadic = true)
+      val expected = q"""
+        App.bind(optionDOY){ doy =>
+          doy match {
+            case date(month, day) =>
+              App.map(nameOfMonth(month.toInt))(x1 => Ok(s"It's $$x1!"))
+            case _ =>
+              NotFound("Not a date, mate!")
+          }
+      }
+      """
+      compareAndPrintIfDifferent(transformed, expected)
+    }.pendingUntilFixed("Close Enough")
+    "clean compilation if monad is required" in {
+      val ast = q"""
+        val optionDOY: Option[String] = ???
+        val date = "(\\d+)/(\\d+)".r
+        case class Ok(message: String)
+        case class NotFound(message: String)
+        def nameOfMonth(num: Int): Option[String] = None
+        extract (optionDOY) match {
+          case date(month, day) =>
+            Ok(s"It’s $${extract(nameOfMonth(month.toInt))}!")
+          case _ =>
+            NotFound("Not a date, mate!")
+        }
+      """
+      transform(ast, ignore = 7) must throwA[ToolBoxError](message = "It is not possible to lift nested extracts in non monadic context")
+    }.pendingUntilFixed("Need to improve how insufficient level of abstraction is detected")
   }
 }
