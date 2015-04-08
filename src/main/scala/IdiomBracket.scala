@@ -193,6 +193,18 @@ object IdiomBracket {
         // TODO: Figure out why unchanged case pattern seems to go bonky in macro
         case Match(expr, cases) =>
           // My current implementation is going to assume there is no stable identifier in the pattern matches
+          if (hasExtracts(expr)) {
+            val requireMonad = cases.exists{ case cq"$x1 => $x2" =>
+              val bindingsToLift = x1.collect{ case Bind(name, _) => name}
+              val (_, replacements) = replaceExtractsWithRef(x2, false)
+              val (_, exprsToLift) = replacements.unzip
+              exprsToLift.exists( expr => expr.exists{
+                case Ident(name) => bindingsToLift.exists(_ == name)
+                case _ => false
+              })
+            }
+            if (requireMonad && !monadic) c.abort(c.enclosingPosition, "This expression requires an instance of Monad")
+          }
           if (monadic && cases.forall{case cq"$x1 => $wtv" => !hasExtracts(x1)}) {
             val newCases = cases.map{case cq"$wtv => $x2" => cq"$wtv => ${lift(x2)._1}"}
             val liftedExpr = lift(expr)._1

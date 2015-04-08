@@ -384,7 +384,7 @@ class CodeGeneration extends Specification {
             NotFound("Not a date, mate!")
         }
       """
-      transform(ast, ignore = 7) must throwA[ToolBoxError](message = "It is not possible to lift nested extracts in non monadic context")
-    }.pendingUntilFixed("Need to improve how insufficient level of abstraction is detected")
+      transform(ast, ignore = 7) must throwA[MacroAborted](message = "This expression requires an instance of Monad")
+    }
   }
 }
