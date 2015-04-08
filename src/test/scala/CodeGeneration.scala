@@ -15,9 +15,11 @@ class CodeGeneration extends Specification {
       number += 1
       "x" + number
     }
-    def abort(pos: reflect.runtime.universe.Position, msg: String) = { throw new IllegalArgumentException("macro test was aborted") }
+    def abort(pos: reflect.runtime.universe.Position, msg: String) = { throw new MacroAborted(msg) }
     def enclosingPosition= reflect.runtime.universe.NoPosition
   }
+
+  case class MacroAborted(msg: String) extends Exception(msg)
 
   def compareAndPrintIfDifferent(actual: reflect.runtime.universe.Tree, expected: reflect.runtime.universe.Tree, compareString: Boolean = false) = {
     val areEqual = if(compareString) actual.toString == expected.toString else actual equalsStructure expected
