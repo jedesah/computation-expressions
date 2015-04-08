@@ -370,7 +370,7 @@ class CodeGeneration extends Specification {
       """
       compareAndPrintIfDifferent(transformed, expected)
     }.pendingUntilFixed("Close Enough")
-    "clean compilation if monad is required" in {
+    "clean compilation error if monad is required" in {
       val ast = q"""
         val optionDOY: Option[String] = ???
         val date = "(\\d+)/(\\d+)".r
