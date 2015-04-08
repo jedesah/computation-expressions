@@ -49,7 +49,6 @@ class CodeGeneration extends Specification {
     val lastLines = everythingTyped.children.drop(ignore + 1)
     val testAST = if(lastLines.size == 1)lastLines.head else Block(lastLines.init, lastLines.last)
     val transformed = IdiomBracket.transform(scala.reflect.runtime.universe)(new DefaultContext,testAST, q"App", everythingTyped.tpe, monadic).get
-    println(transformed)
     tb.untypecheck(transformed)
   }
 
