@@ -273,18 +273,35 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         )
         f == expected
       }
-      "monadic" ! prop { (a: Option[String], b: Option[String], c: Option[String], foo: String => String, bar: String => String) =>
-        val f = IdiomBracket.monad[Option, String] {
-          extract(a) match {
-            case "" => foo(extract(b))
-            case _ => bar(extract(c))
+      "monadic" in {
+        "simple" ! prop { (a: Option[String], b: Option[String], c: Option[String], foo: String => String, bar: String => String) =>
+          val f = IdiomBracket.monad[Option, String] {
+            extract(a) match {
+              case "" => foo(extract(b))
+              case _ => bar(extract(c))
+            }
           }
+          val expected = Monad[Option].bind(a){
+            case "" => Apply[Option].map(b)(foo)
+            case _ => Apply[Option].map(c)(bar)
+          }
+          f ==== expected
         }
-        val expected = Monad[Option].bind(a){
-          case "" => Apply[Option].map(b)(foo)
-          case _ => Apply[Option].map(c)(bar)
-        }
-        f ==== expected
+        "more complex" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[String], foo: String => String, bar: String => String) =>
+          val f = IdiomBracket.monad[Option, String] {
+            val dd = extract(d)
+            extract(a) match {
+              case `dd` => foo(extract(b))
+              case _ => bar(extract(c))
+            }
+          }
+          val expected = Monad[Option].bind2(a, d) { (aa, dd) => aa match {
+            case `dd` => Apply[Option].map(b)(foo)
+            case _ => Apply[Option].map(c)(bar)
+          }
+          }
+          f ==== expected
+        }.pendingUntilFixed("Not currently supported")
       }
     }
     "if statement" in {
