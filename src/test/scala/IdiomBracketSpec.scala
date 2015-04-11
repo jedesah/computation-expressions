@@ -229,7 +229,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
     }
     tag("match")
     "match" in {
-      "with extract in LHS" ! prop { (a: Option[String]) =>
+      "with extract in expression" ! prop { (a: Option[String]) =>
         val f = IdiomBracket[Option, String] {
           extract(a) match {
             case "hello" => "h"
@@ -244,7 +244,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         else
           f == None
       }
-      "with extract in RHS" ! prop { a: Option[String] =>
+      "with extract in RHS of case statement" ! prop { a: Option[String] =>
         val f = IdiomBracket[Option, String] {
           List(1,2,3) match {
             case Nil => extract(a) + "!"
@@ -257,7 +257,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         }
         f ==== expected
       }
-      "with stable identifier in case statement" ! prop { (a: Option[String], b: Option[String]) =>
+      "with stable identifier in  pattern match case statement" ! prop { (a: Option[String], b: Option[String]) =>
         val f = IdiomBracket[Option, String] {
           val bb = extract(b)
           extract(a) match {
