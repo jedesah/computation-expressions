@@ -232,7 +232,7 @@ class CodeGeneration extends Specification {
                        App.map(a)(test): Option[String]
                     """
       compareAndPrintIfDifferent(transformed, expected, compareString = true)
-    }.pendingUntilFixed("not sure how to pass in the the type that is an Applicative directly to the genreation function")
+    }.pendingUntilFixed("not sure how to pass in the type that is an Applicative directly to the genreation function")
     "asc reverse core site" in {
       val ast = q"""
                    val phone: Option[String] = ???
