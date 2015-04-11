@@ -301,7 +301,32 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           }
           }
           f ==== expected
-        }.pendingUntilFixed("Not currently supported")
+        }
+        "with multiple stable identifier in the pattern matches of case statements" ! prop {
+          (a: Option[String],
+           b: Option[String],
+           c: Option[String],
+           d: Option[String],
+           e: Option[String],
+           f: String,
+           foo: String => String,
+           bar: String => String) =>
+          val result = IdiomBracket.monad[Option, String] {
+            val dd = extract(d)
+            val ee = extract(e)
+            extract(a) match {
+              case `dd` => foo(extract(b))
+              case `ee` => bar(extract(c))
+              case _ => f
+            }
+          }
+          val expected = Monad[Option].bind2(a, d) { (aa, dd) => aa match {
+            case `dd` => Apply[Option].map(b)(foo)
+            case _ => Apply[Option].map(c)(bar)
+          }
+          }
+          result ==== expected
+        }.pendingUntilFixed("Not yet implemented")
       }
     }
     "if statement" in {
