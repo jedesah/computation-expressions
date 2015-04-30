@@ -13,6 +13,8 @@ import scala.concurrent.{Await, Future}
 import scalaz.std.scalaFuture.futureInstance
 import scalaz.{Applicative, Monad}
 
+import scala.concurrent.ExecutionContext.Implicits.global
+
 class Examples extends Specification with ScalaCheck {
 
   implicit def FutureArbitrary[A: Arbitrary]: Arbitrary[scala.concurrent.Future[A]] =
@@ -58,7 +60,7 @@ class Examples extends Specification with ScalaCheck {
                            lookupReputation: Phone => Future[Score],
                            renderPage: (Phone, Address, Int) => HTML) =>
         import com.github.jedesah.IdiomBracket.auto.extract
-        val f: Future[HTML] = IdiomBracket.monad {
+        val f: Future[HTML] = IdiomBracket.monad[Future, HTML] {
           val phone = lookupPhone(phoneString)
           val address = lookupAddress(phone)
           val rep = lookupReputation(phone)
