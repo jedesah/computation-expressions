@@ -301,7 +301,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           }
           }
           f ==== expected
-        }
+        }.pendingUntilFixed("Not yet implemented to take advantage of Monad")
         "with multiple stable identifier in the pattern matches of case statements" ! prop {
           (a: Option[String],
            b: Option[String],
