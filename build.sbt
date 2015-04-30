@@ -13,6 +13,8 @@ libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-reflect" % scalaVersion.value,
   "org.specs2" %% "specs2-core" % "3.5" % "test",
   "org.specs2" %% "specs2-scalacheck" % "3.5" % "test",
+  "com.chuusai" %% "shapeless" % "2.1.0",
+  "org.typelevel" %% "shapeless-scalaz" % "0.3",
   "org.scala-lang" % "scala-compiler" % scalaVersion.value % "test"
 )
 

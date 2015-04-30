@@ -7,16 +7,32 @@ import org.scalacheck.Arbitrary._
 import org.specs2.ScalaCheck
 import org.specs2.mutable._
 import IdiomBracket.extract
+import shapeless._
 
 import scala.concurrent.Await
 import scalaz.{Monad, Applicative, Apply}
 import scalaz.std.option._
 import scalaz.std.list._
+import shapeless.contrib.scalaz._
 
 class IdiomBracketSpec extends Specification with ScalaCheck {
 
   implicit def FutureArbitrary[A: Arbitrary]: Arbitrary[scala.concurrent.Future[A]] =
     Arbitrary(arbitrary[A] map ((x: A) => scala.concurrent.Future.successful(x)))
+
+  type ThirteenOptions[A] =  Option[A] ::
+                          Option[A] ::
+                          Option[A] ::
+                          Option[A] ::
+                          Option[A] ::
+                          Option[A] ::
+                          Option[A] ::
+                          Option[A] ::
+                          Option[A] ::
+                          Option[A] ::
+                          Option[A] ::
+                          Option[A] ::
+                          Option[A] :: HNil
 
   "IdiomBracket" should {
     "simple function application" in {
@@ -32,6 +48,29 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         "some extracts, some not " ! prop { (a: String, b: Option[String], c: Option[String], doThing: (String, String, String) => String) =>
           val f = IdiomBracket[Option, String](doThing(a, extract(b), extract(c)))
           f ==== Applicative[Option].apply3(Some(a),b,c)(doThing)
+        }
+        "so many parameters" ! prop {
+          (args: ThirteenOptions[String],
+            fun: (String, String, String, String, String, String, String, String, String, String, String, String, String) => String) =>
+            val (a,b,c,d,e,f,g,h,i,j,k,l,m) = args.tupled
+            val result = IdiomBracket[Option, String](fun(
+              extract(a),
+              extract(b),
+              extract(c),
+              extract(d),
+              extract(e),
+              extract(f),
+              extract(g),
+              extract(h),
+              extract(i),
+              extract(j),
+              extract(k),
+              extract(l),
+              extract(m)))
+            result ==== Applicative[Option].map(sequence(a :: b :: c :: d :: e :: f :: g :: h :: i :: j :: k :: l :: m :: HNil)){
+              case aa :: bb :: cc :: dd :: ee :: ff :: gg :: hh :: ii :: jj :: kk :: ll :: mm :: HNil =>
+                fun(aa,bb,cc,dd,ee,ff,gg,hh,ii,jj,kk,ll,mm)
+            }
         }
       }
       tag("type parameter")
