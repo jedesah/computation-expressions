@@ -6,6 +6,7 @@ import scala.tools.reflect.{ToolBoxError, ToolBox}
 
 import org.specs2.mutable._
 import com.github.jedesah.IdiomBracket.ContextSubset
+import utils._
 
 class CodeGeneration extends Specification {
 
@@ -32,24 +33,21 @@ class CodeGeneration extends Specification {
     }
   }
 
-  //TODO: Remove code duplication here
   def transformLast(block: reflect.runtime.universe.Tree, nbLines: Int = 1, monadic: Boolean = false) = {
+    transformImpl(block, Last(nbLines), monadic)
+  }
+
+  def transformImpl(block: reflect.runtime.universe.Tree, range: Range, monadic: Boolean = false) = {
     val extractImport = q"import com.github.jedesah.IdiomBracket.extract"
     val tb = cm.mkToolBox()
     val everythingTyped = tb.typecheck(Block(extractImport :: block.children.init, block.children.last))
-    val lastLines = everythingTyped.children.takeRight(nbLines)
+    val lastLines = everythingTyped.children.drop(1).slice(range).toList
     val testAST = if(lastLines.size == 1)lastLines.head else Block(lastLines.init, lastLines.last)
     tb.untypecheck(IdiomBracket.transform(scala.reflect.runtime.universe)(new DefaultContext,testAST, q"App", everythingTyped.tpe, monadic).get)
   }
 
   def transform(block: reflect.runtime.universe.Tree, ignore: Int, monadic: Boolean = false) = {
-    val extractImport = q"import com.github.jedesah.IdiomBracket.extract"
-    val tb = cm.mkToolBox()
-    val everythingTyped = tb.typecheck(Block(extractImport :: block.children.init, block.children.last))
-    val lastLines = everythingTyped.children.drop(ignore + 1)
-    val testAST = if(lastLines.size == 1)lastLines.head else Block(lastLines.init, lastLines.last)
-    val transformed = IdiomBracket.transform(scala.reflect.runtime.universe)(new DefaultContext,testAST, q"App", everythingTyped.tpe, monadic).get
-    tb.untypecheck(transformed)
+   transformImpl(block, Drop(ignore), monadic)
   }
 
   "code generation" should {
