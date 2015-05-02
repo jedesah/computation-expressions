@@ -7,6 +7,25 @@ import scala.collection.mutable.ListBuffer
 
 object IdiomBracket {
 
+  def bind[F[_]:Monad,A,B](a: F[A])(f: A => F[B]): F[B] = {
+    val i = implicitly[Monad[F]]
+    i.bind(a)(f)
+  }
+
+  def bind2[F[_]:Monad,A,B,C](a: F[A], b: F[B])(f: (A,B) => F[C]): F[C] = {
+    val i = implicitly[Monad[F]]
+    i.bind(i.apply2(a, b)((_, _))) {
+      f.tupled
+    }
+  }
+
+  def bind3[F[_]:Monad,A,B,C,D](a: F[A], b: F[B], c: F[C])(f: (A,B,C) => F[D]): F[D] = {
+    val i = implicitly[Monad[F]]
+    i.bind(i.apply3(a, b, c)((_, _, _))) {
+      f.tupled
+    }
+  }
+
   val merelyLiftedMsg = "IdiomBracket merely lifted expression, there is a probably a better more explicit way of achieving the same result"
 
   def apply[F[_]: Applicative,T](x: T): F[T] = macro idiomBracket[T,F]
@@ -109,9 +128,24 @@ object IdiomBracket {
      * @return New expression that has been lifted
      */
     def lift(expr: u.Tree, flatten: Boolean = false): (u.Tree, Int) = {
+      def wrapInFunctionAndApply(expr: u.Tree, args: List[u.Tree], namesInExpr: List[u.TermName]) = {
+        if (args.size > 12) {
+          // a :: b :: c
+          val argsWithCons = args.reduceLeft((leftArg, rightArg) => q"$leftArg :: $rightArg")
+          // a :: b :: c :: HNil
+          val hlist = q"$argsWithCons :: shapeless.HNil"
+          val namesWithCons = namesInExpr.map(Ident(_)).reduceLeft[u.Tree]((leftArg, rightArg) => q"$leftArg :: $rightArg")
+          val namesHList = q"$namesWithCons :: shapeless.HNil"
+          (q"$applicativeInstance.map(shapeless.contrib.scalaz.SequenceFunctions.sequence($hlist)){ case $namesHList => $expr}", 1)
+        } else {
+            val lambda = createFunction(expr, namesInExpr)
+            wrapInApply(lambda, args)
+          }
+      }
       def wrapInApply(expr: u.Tree, args: List[u.Tree]) = {
         val applyTerm = getApplyTerm(args.length, flatten)
-        (q"$applicativeInstance.$applyTerm(..$args)($expr)", 1)
+        if (!flatten) (q"$applicativeInstance.$applyTerm(..$args)($expr)", 1)
+        else (q"com.github.jedesah.IdiomBracket.$applyTerm(..$args)($expr)($applicativeInstance)",1)
       }
       expr match {
         case fun: Apply if isExtractFunction(fun) =>
@@ -140,20 +174,20 @@ object IdiomBracket {
             (Match(expr, newCases), 1)
         // This is handling the case where all the arguments need to be extracted so to produce the following transformation
         // test(extract(a)) => App.map(a)(test)
-        case Apply(ident@Ident(_), args) if args.forall(hasExtracts) => wrapInApply(ident, args.map(lift(_)._1))
+        // since scalaz only has up to apply12, we cannot use this strategy if there are 13 or more arguments to the function application
+        case Apply(ident@Ident(_), args) if args.forall(hasExtracts) && args.size < 13 =>
+          wrapInApply(ident, args.map(lift(_)._1))
         case _ if nbExtracts(expr) == 1 =>
           val (newExpr, replaced) = replaceExtractsWithRef(expr, insidePatternMatch = false)
           val List((name, arg)) = replaced
           val liftedArg = lift(arg)._1
-          val lambda = createFunction(newExpr, List(name))
-          wrapInApply(lambda, List(liftedArg))
+          wrapInFunctionAndApply(newExpr, List(liftedArg), List(name))
         case app: Apply =>
           // we need to go case by case for each argument and see if we need to extract it
           val (transformedApply, replacements) = replaceExtractWithRefApply(app)
           // Names are the nam
           val (lambdaArgumentNames, argsWithExtracts) = replacements.unzip
-          val lambda = createFunction(transformedApply,lambdaArgumentNames)
-          wrapInApply(lambda, argsWithExtracts.map(lift(_)._1))
+          wrapInFunctionAndApply(transformedApply, argsWithExtracts.map(lift(_)._1), lambdaArgumentNames)
           // Not sure yet how to handle case with direct nested extracts
           // Currently will error because of check in first case
           /*else {
@@ -226,14 +260,12 @@ object IdiomBracket {
               val exprName = TermName(c.freshName())
               (expr :: args, Ident(exprName), exprName :: names)
             } else (args, expr, names)
-            val function = createFunction(q"$newExpr match { case ..$tCases}", allNames)
-            wrapInApply(function, allArgs.map(lift(_)._1))
+            wrapInFunctionAndApply(q"$newExpr match { case ..$tCases}", allArgs.map(lift(_)._1), allNames)
           }
         case ifExpr@If(expr, trueCase, falseCase) =>
           if (!monadic) {
             val (withExtractsRemoved, substitutions) = replaceExtractWithRefIf(ifExpr)
-            val lambda = createFunction(withExtractsRemoved,substitutions.keys.toList)
-            wrapInApply(lambda, substitutions.values.toList.map(lift(_)._1))
+            wrapInFunctionAndApply(withExtractsRemoved, substitutions.values.toList.map(lift(_)._1), substitutions.keys.toList)
           }
           else {
             val List(exprT, trueCaseT, falseCaseT) =
@@ -241,9 +273,10 @@ object IdiomBracket {
               else List(expr, trueCase, falseCase).map(lift(_)._1)
             (q"$applicativeInstance.bind($exprT)(if(_) $trueCaseT else $falseCaseT)", 1)
           }
+        // extract(aa).foo
         case Select(qual, name) =>
           val lifted = lift(qual)._1
-          wrapInApply(q"_.${name.toTermName}", List(lifted))
+          (q"$applicativeInstance.map($lifted)(_.${name.toTermName})",1)
         case Typed(expr, typeName) =>
           // TODO: This possibly not the most robust way of doing things, but it works for now
           val result = AppliedTypeTree(Ident(TypeName(instanceType.toString)),List(typeName))
