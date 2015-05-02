@@ -384,5 +384,44 @@ class CodeGeneration extends Specification {
       """
       transform(ast, ignore = 7) must throwA[MacroAborted](message = "This expression requires an instance of Monad")
     }
+    "so many parameters" in {
+      val ast = q"""
+        val fun: (String, String, String, String, String, String, String, String, String, String, String, String, String) => String = ???
+        val a: Option[String] = ???
+        val b: Option[String] = ???
+        val c: Option[String] = ???
+        val d: Option[String] = ???
+        val e: Option[String] = ???
+        val f: Option[String] = ???
+        val g: Option[String] = ???
+        val h: Option[String] = ???
+        val i: Option[String] = ???
+        val j: Option[String] = ???
+        val k: Option[String] = ???
+        val l: Option[String] = ???
+        val m: Option[String] = ???
+        fun(
+          extract(a),
+          extract(b),
+          extract(c),
+          extract(d),
+          extract(e),
+          extract(f),
+          extract(g),
+          extract(h),
+          extract(i),
+          extract(j),
+          extract(k),
+          extract(l),
+          extract(m))
+      """
+      val expected = q"""
+        App.map(sequence(x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x8 :: x9 :: x10 :: x11 :: x12 :: x13 :: HNil)) {
+          case x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x8 :: x9 :: x10 :: x11 :: x12 :: x13 :: HNil =>
+            fun(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13)
+        }
+      """
+      compareAndPrintIfDifferent(transformLast(ast), expected)
+    }.pendingUntilFixed("Don't have time to figure out HList problem right now")
   }
 }
