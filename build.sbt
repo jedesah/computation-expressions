@@ -8,6 +8,10 @@ version := "0.1-SNAPSHOT"
 
 scalaVersion := "2.11.6"
 
+resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
+
+scalacOptions in Test ++= Seq("-Yrangepos")
+
 libraryDependencies ++= Seq(
   "org.scalaz" %% "scalaz-core" % "7.1.2",
   "org.scala-lang" % "scala-reflect" % scalaVersion.value,
