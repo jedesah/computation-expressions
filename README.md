@@ -132,6 +132,24 @@ or if you prefer even more magic, like so:
         renderPage(phone, address, rep)
     }
 
+## Limitations
+
+Although the objective would be too support a maximum subset of the language, in practice we are far from there. Here are a bunch of constructs know to have good engouh support as well as some know to have some issues. If a construct is in neither category it's safe to assume it probably has some issues. The hope is that once Macro support improves in Scala ([Scala Meta)](http://scalameta.org/), it will be easier to support all of the language.
+
+### Know to work well enough
+
+- Function application
+- if-else statement
+- function currying
+- String interpolation
+- Blocks
+- basic `match` statements
+ 
+### Known limitations
+
+- Does not support value pattern matching => `val (a,b) = something`
+- The `match` statement is a challenge to get right in all cases. It should work fine for basic usage, but will start to break down if using stable identifiers and excessive monadic behavior in pattern matches. Value pattern matching is actually desagured to a pattern match which is why it is not supported.
+
 ## Similar Projects
 
 ### [Async/Await](https://github.com/scala/async)
@@ -155,3 +173,4 @@ Scala Workflow is the most advanced project out there doing a similar thing. It 
     - Currently the large majority of tests only test the `Option` context, there is no fundemental reason it could not be generalized to test many Contexts at the same time, although this would require some nifty changes to ScalaCheck or some alternative. See [how it's done in *Effectful*](https://github.com/pelotom/effectful/blob/master/src/test/scala/effectful/EffectfulSpec.scala#L18).
 - Make ScalaCheck function generation better
     - Currenlty, ScalaCheck only generates constant functions, this means the properties run a much higher risk of being false positives. It would be possible to create a few function generators for our purposes, but much better would be to fix [this issue](https://github.com/rickynils/scalacheck/issues/136) on [ScalaCheck](https://github.com/rickynils/scalacheck).
+- Use [Scala Meta](http://scalameta.org/)
