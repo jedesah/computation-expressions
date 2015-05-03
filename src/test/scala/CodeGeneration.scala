@@ -8,7 +8,7 @@ import org.specs2.mutable._
 import com.github.jedesah.Expression.ContextSubset
 import utils._
 
-class CodeGeneration extends Specification {
+class CodeGeneration extends Specification { sequential // The toolbox is not fully Thread safe sigh...
 
   class DefaultContext extends ContextSubset[reflect.runtime.universe.type] {
     var number = 0
