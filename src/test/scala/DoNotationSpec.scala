@@ -15,7 +15,7 @@ import scalaz.std.option._
 import scalaz.std.list._
 import shapeless.contrib.scalaz._
 
-class ExpressionSpec extends Specification with ScalaCheck {
+class DoNotationSpec extends Specification with ScalaCheck {
 
   implicit def FutureArbitrary[A: Arbitrary]: Arbitrary[scala.concurrent.Future[A]] =
     Arbitrary(arbitrary[A] map ((x: A) => scala.concurrent.Future.successful(x)))
