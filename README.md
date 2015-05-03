@@ -136,7 +136,7 @@ or if you prefer even more magic, like so:
 
 ### [Async/Await](https://github.com/scala/async)
 
-*Async/Await* is based on a language feature from C#. It basically does the same thing, but specialized for `Future`'s. My experimentation reveals that it is not possible to "fail-fast". It might be better "optimized" for runtime performance.
+*Async/Await* is based on a language feature from C#. It basically does the same thing, but specialized for `Future`'s. My experimentation reveals that it is not possible to "fail-fast". It might be better optimized for runtime performance.
 
 ### [Effectful](https://github.com/pelotom/effectful)
 
