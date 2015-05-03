@@ -34,7 +34,7 @@ class DoNotationSpec extends Specification with ScalaCheck {
                           Option[A] ::
                           Option[A] :: HNil
 
-  "Expression" should {
+  "Expression.monad" should {
     "double nested extract within argument" in {
       "simple enough" ! prop { (a: Option[String], b: Option[String], c: Option[String], d: Option[Int], doThing: (String, String, String) => String, firstThis: String => Option[String]) =>
         val f = Expression.monad[Option, String](doThing(extract(firstThis(extract(a))), extract(b), extract(c)))
