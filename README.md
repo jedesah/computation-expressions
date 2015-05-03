@@ -74,6 +74,23 @@ Instead, we can do this:
 
 Let's move away from `Future`s now because this notation supports any Context. Let's consider the `Writer` Monad. This Monad is typically used for logging.
 
+for-comprehension version:
+
+    a: Writer[Int] = Writer.point(8).log("This is a magic value")
+    b: Writer[Int] = Writer.point(random()).log("I got this value from a dirty function")
+    c: Writer[String] = Writer.point("Hello World").log("Hello World...")
+    for {
+      aa <- a
+      bb <- b
+      div <- if (b == 0) {
+          ctx.log("We avoided a division by zero, yay!")
+          Write.point(5).log("We avoided a division by zero, yay!")
+        } else Write.point(aa / b)
+      cc <- c
+    } yield cc * div
+    
+Now with Expressions:
+
     a: Writer[Int] = Writer.point(8).log("This is a magic value")
     b: Writer[Int] = Writer.point(random()).log("I got this value from a dirty function")
     c: Writer[String] = Writer.point("Hello World").log("Hello World...")
@@ -87,6 +104,22 @@ Let's move away from `Future`s now because this notation supports any Context. L
 
 Conversely for `Future`s:
 
+for comprehension:
+
+    a: Future[Int] = Writer.point(8).log("This is a magic value")
+    b: Future[Int] = Writer.point(random()).log("I got this value from a dirty function")
+    c: Future[String] = Writer.point("Hello World").log("Hello World...")
+    for {
+      aa <- a
+      bb <- b
+      div <- if (b == 0) {
+        Future.failed(new Exception("Division by zero :-("))
+      } else Future.now(a / b)
+      cc <- c
+    } yield cc * div
+
+Now with Expressions:
+
     a: Future[Int] = Writer.point(8).log("This is a magic value")
     b: Future[Int] = Writer.point(random()).log("I got this value from a dirty function")
     c: Future[String] = Writer.point("Hello World").log("Hello World...")
@@ -94,7 +127,6 @@ Conversely for `Future`s:
       val div = if (b == 0) {
         // return is a special function on the ctx that allows to change the whole Context to the value passed to it
         ctx.return(Future.failed(new Exception("Division by zero :-(")))
-        5
       } else a / b
       c * div
     }
