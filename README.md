@@ -145,3 +145,13 @@ or if you prefer even more magic, like so:
 ### [Scala Workflow](https://github.com/aztek/scala-workflow)
 
 Scala Workflow is the most advanced project out there doing a similar thing. It uses the least powerful interface and also allows injecting functions available on the abstraction right in the middle of a workflow. Unfortunately, Scala Workflow requires untyped macros which are no longer supported in the latest version of Macro Paradise. It also does more heavy lifting then I believe is necessary, for instance it implements the implicit extraction on it's own where as Expressions rely on good old Scala implicit resolution. This means that implicit extraction will break down in Expressions if the code has other unrelated implicit conversions (because Scala does not support multiple implicit conversions). IMHO this is a separate concern and I would rather see a macro or Scala itself support multiple implicit conversions with all the gotchas that come with it. So although Scala Workflow is in theory the most feature-full and generic solution, it's complicated implementation is weighting it down.
+
+## TODO
+
+- Fix all the limitations
+- Implement `ctx`
+- Support for nested abstractions
+- Generalize tests
+    - Currently the large majority of tests only test the `Option` context, there is no fundemental reason it could not be generalized to test many Contexts at the same time, although this would require some nifty changes to ScalaCheck or some alternative. See [how it's done in *Effectful*](https://github.com/pelotom/effectful/blob/master/src/test/scala/effectful/EffectfulSpec.scala#L18).
+- Make ScalaCheck function generation better
+    - Currenlty, ScalaCheck only generates constant functions, this means the properties run a much higher risk of being false positives. It would be possible to create a few function generators for our purposes, but much better would be to fix [this issue](https://github.com/rickynils/scalacheck/issues/136) on [ScalaCheck](https://github.com/rickynils/scalacheck).
