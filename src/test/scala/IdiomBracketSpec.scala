@@ -157,7 +157,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
       tag("match")
       "match" in {
         "with extract in expression" ! prop { (a: Option[String]) =>
-          val f = Expression[Option, String] {
+          val f = Expression.idiom[Option, String] {
             extract(a) match {
               case "hello" => "h"
               case _ => "e"
@@ -172,7 +172,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
             f == None
         }
         "with extract in RHS of case statement" ! prop { a: Option[String] =>
-          val f = Expression[Option, String] {
+          val f = Expression.idiom[Option, String] {
             List(1, 2, 3) match {
               case Nil => extract(a) + "!"
               case _ => "hello"
@@ -185,7 +185,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           f ==== expected
         }
         "with stable identifier in  pattern match case statement" ! prop { (a: Option[String], b: Option[String]) =>
-          val f = Expression[Option, String] {
+          val f = Expression.idiom[Option, String] {
             val bb = extract(b)
             extract(a) match {
               case `bb` => "h"
@@ -203,7 +203,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
       }
       "if statement" in {
         "extract in condition expression" ! prop { (a: Option[String]) =>
-          val f = Expression[Option, Int] {
+          val f = Expression.idiom[Option, Int] {
             if (extract(a).length == 5) 10 else 20
           }
           f ==== Applicative[Option].map(a)(aa => if (aa.length == 5) 10 else 20)
@@ -212,13 +212,13 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
       tag("funky")
       "renamed import" ! prop { (a: Option[String], b: Option[String], doThing: (String, String) => String) =>
         import Expression.{extract => extractt}
-        val f = Expression[Option, String](doThing(extractt(a), extractt(b)))
+        val f = Expression.idiom[Option, String](doThing(extractt(a), extractt(b)))
         f == Applicative[Option].apply2(a, b)(doThing)
       }
       tag("funky")
       "implicit extract" ! prop { (a: Option[String], b: Option[String], doThing: (String, String) => String) =>
         import Expression.auto.extract
-        val f = Expression[Option, String](doThing(a, b))
+        val f = Expression.idiom[Option, String](doThing(a, b))
         f == Applicative[Option].apply2(a, b)(doThing)
       }
       /*"SIP-22 example" ! prop { (optionDOY: Option[String]) =>
@@ -238,7 +238,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
     }*/
       "with interpolated string" in {
         "simple" ! prop { (a: Option[String]) =>
-          val f = Expression[Option, String] {
+          val f = Expression.idiom[Option, String] {
             s"It’s ${extract(a)}!"
           }
           f ==== Applicative[Option].map(a)(aa => s"It’s $aa!")
@@ -249,7 +249,7 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
           def nameOfMonth(num: Int): Option[String] = a
           val month = 5
 
-          val f = Expression[Option, Ok] {
+          val f = Expression.idiom[Option, Ok] {
             Ok(s"It’s ${extract(nameOfMonth(month.toInt))}!")
           }
 
@@ -261,42 +261,42 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
       }
       "with currying" in {
         "2 currys with one param" ! prop { (a: Option[String], test: String => String => String, c: String) =>
-          val f = Expression[Option, String](test(extract(a))(c))
+          val f = Expression.idiom[Option, String](test(extract(a))(c))
           f == Applicative[Option].map(a)(test(_)(c))
         }
         "2 currys with one two params" ! prop { (a: Option[String], b: Option[String], test: (String, String) => String => String) =>
-          val f = Expression[Option, String](test(extract(a), extract(b))("foo"))
+          val f = Expression.idiom[Option, String](test(extract(a), extract(b))("foo"))
           f == Applicative[Option].apply2(a, b)(test(_, _)("foo"))
         }
         "2 currys with two two params" ! prop { (a: Option[String], b: Option[String], test: (String, String) => (String, String) => String) =>
-          val f = Expression[Option, String](test(extract(a), extract(b))("foo", "bar"))
+          val f = Expression.idiom[Option, String](test(extract(a), extract(b))("foo", "bar"))
           f == Applicative[Option].apply2(a, b)(test(_, _)("foo", "bar"))
         }
         "2 currys with extracts in both" ! prop { (a: Option[String], b: Option[String], test: String => String => String) =>
-          val f = Expression[Option, String](test(extract(a))(extract(b)))
+          val f = Expression.idiom[Option, String](test(extract(a))(extract(b)))
           f ==== Applicative[Option].apply2(a, b)(test(_)(_))
         }
         "2 currys with implicit" ! prop { (a: Option[String], b: String => String, c: String) =>
           trait Proof
           def test(fst: String)(implicit snd: Proof): String = b(fst)
           implicit val myProof = new Proof {}
-          val f = Expression[Option, String](test(extract(a)))
+          val f = Expression.idiom[Option, String](test(extract(a)))
           f ==== Apply[Option].map(a)(test)
         }
       }
       "with tuples" ! prop { (a: Option[String], b: Option[String], test: String => String) =>
-        val f = Expression[Option, (String, String)] {
+        val f = Expression.idiom[Option, (String, String)] {
           (test(extract(a)), extract(b))
         }
         f ==== Applicative[Option].apply2(a, b)((aa, bb) => (test(aa), bb))
       }
       "with typed" in {
         "simple" ! prop { a: Option[String] =>
-          val f = Expression[Option, String](extract(a: Option[String]))
+          val f = Expression.idiom[Option, String](extract(a: Option[String]))
           f ==== a
         }
         "complex" ! prop { (a: Option[String], test: String => String) =>
-          val f = Expression[Option, String](test(extract(a)): String)
+          val f = Expression.idiom[Option, String](test(extract(a)): String)
           f ==== a.map(test)
         }
       }
