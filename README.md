@@ -1,14 +1,14 @@
 # Expressions
 
-Expressions are a replacement for Scala for-comprehensions
+Expressions are a replacement for Scala for-comprehensions.
 
 Scala for-comprehensions have three drawbacks that I have identified:
 
-- They only use flatMap which can be unnecessarily restrictive
-- They don't play very well with if statements and match statements
+- They only use `flatMap` which can be unnecessarily restrictive
+- They don't play very well with `if` and `match` statements
 - It's not possible to manipulate the context from within a for-comprehension
 
-The concepts behind Expressions are loosely related to Computation Expressions from F# which is the inspiration for the name
+The concepts behind Expressions are loosely related to Computation Expressions from F# which is the inspiration for the name.
 
 Background on Computation Expressions:
 - [http://tomasp.net/academic/papers/computation-zoo/computation-zoo.pdf](http://tomasp.net/academic/papers/computation-zoo/computation-zoo.pdf)
@@ -19,7 +19,7 @@ Background on Computation Expressions:
 
 ### Flexible use of abstractions
 
-For-comprehensions are based on the notion of **do-notation** you may be familiar with from Haskell. This notation allows one to work with values within some kind of "context" class which can be treated as a `Monad`. A `Monad` is any abstraction that supports the two following methods `point[A](a: A): F[A]` and `bind[A](fa: F[A])(f: A => F[B]): F[B]` (also know as `flatMap`). Both **do-notation** and for-comprehensions thus rewrite the "sugared" code into applications of `point` and `bind`. Unfortunately, while `bind` is a very powerful method and can be used to rewrite any expressions, it's power comes at the cost of flexibility in it's implementation. `Applicative` offers a less powerful abstraction that does however give more flexibility to it's implementation. What does this all mean, let's look at an example:
+For-comprehensions are based on the notion of *do-notation* you may be familiar with from Haskell. This notation allows one to work with values within some kind of "context" which can be treated as a `Monad`. A `Monad` is any abstraction that supports the two following methods `point[A](a: A): F[A]` and `bind[A](fa: F[A])(f: A => F[B]): F[B]` (also know as `flatMap`). Both *do-notation* and for-comprehensions thus rewrite the "sugared" code into applications of `point` and `bind`. Unfortunately, while `bind` is a very powerful method and can be used to rewrite any expressions, it's power comes at the cost of flexibility in it's implementation. `Applicative` offers a less powerful abstraction that does however give more flexibility to it's implementation. What does this all mean, let's look at an example:
 
     a: Future[A]
     b: Future[B]
@@ -28,7 +28,7 @@ For-comprehensions are based on the notion of **do-notation** you may be familia
          bb <- b
          cc <- c) yield combine(a, b, c)
 
-Let's assume Future[A] takes 5 seconds but Future[C] fails after 1 second. Let's assume we want it to "fail-fast", that is we want the whole thing to fail immediately if Future[C] fails after 1 second. This behavior is simply impossible with the above code because `bind` does not support failing fast. Please see [my talk](https://www.youtube.com/watch?v=tU4pU5vaddU#t=823) at PNWScala for a more in depth explanation of why this is.
+Let's assume `Future[A]` takes 5 seconds but `Future[C]` fails after 1 second. Let's assume we want it to "fail-fast", that is, we want the whole thing to fail immediately if `Future[C]` fails after 1 second. This behavior is simply impossible with the above code because `bind` does not support failing fast. Please see [my talk](https://www.youtube.com/watch?v=tU4pU5vaddU#t=823) at PNWScala for a more in depth explanation of why this is.
 
 Now let's look at the same example using Expressions:
 
@@ -50,7 +50,7 @@ Let's consider the following piece of code:
          bb <- b
          cc <- c) yield if (aa == something) polish(b) else polish(c)
 
- The above code will wait on the result of all three Future's before deciding to pick either the result from `b` or `c`. That's not ideal as far as I am concerned. I would rather if it waited on `a` and then waited on either `b` or `c` because at that point we know the result of the other one is of no importance.
+ The above code will wait on the result of all three `Future`'s before deciding to pick either the result from `b` or `c`. That's not ideal as far as I am concerned. I would rather if it waited on `a` and then waited on either `b` or `c` because at that point we know the result of the other one is of no importance.
 
  We can fix this like this:
 
@@ -103,7 +103,7 @@ Conversely for `Future`s:
 
 ### Installation
 
-    libraryDependencies += "com.github.jedesah" %% "expressions" %% NOT-RELEASED-YET
+    libraryDependencies += "com.github.jedesah" %% "expressions" % NOT-RELEASED-YET
 
 Now, you can `import com.github.jedesah.Expression._` and use it like so:
 
@@ -136,11 +136,11 @@ or if you prefer even more magic, like so:
 
 ### [Async/Await](https://github.com/scala/async)
 
-Async/Await is based on a language feature from C#. It basically does the same thing, but specialized for Future's and my experimentation reveals that it is not possible to "fail-fast". To be fair, it might be better "optimized" for runtime performance.
+*Async/Await* is based on a language feature from C#. It basically does the same thing, but specialized for Future's and my experimentation reveals that it is not possible to "fail-fast". To be fair, it might be better "optimized" for runtime performance.
 
 ### [Effectful](https://github.com/pelotom/effectful)
 
-**Effectful** generalizes the idea behind Async/Await to any Monad. It currently does not use the least powerful interface and as such fundamentally does not support failing-fast for `Future`s.
+*Effectful* generalizes the idea behind Async/Await to any Monad. It currently does not use the least powerful interface and as such fundamentally does not support failing-fast for `Future`s.
 
 ### [Scala Workflow](https://github.com/aztek/scala-workflow)
 
