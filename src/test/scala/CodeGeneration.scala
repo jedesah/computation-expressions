@@ -5,7 +5,7 @@ import scala.reflect.runtime.{currentMirror => cm}
 import scala.tools.reflect.{ToolBoxError, ToolBox}
 
 import org.specs2.mutable._
-import com.github.jedesah.IdiomBracket.ContextSubset
+import com.github.jedesah.Expression.ContextSubset
 import utils._
 
 class CodeGeneration extends Specification {
@@ -38,12 +38,12 @@ class CodeGeneration extends Specification {
   }
 
   def transformImpl(block: reflect.runtime.universe.Tree, range: Range, monadic: Boolean = false) = {
-    val extractImport = q"import com.github.jedesah.IdiomBracket.extract"
+    val extractImport = q"import com.github.jedesah.Expression.extract"
     val tb = cm.mkToolBox()
     val everythingTyped = tb.typecheck(Block(extractImport :: block.children.init, block.children.last))
     val lastLines = everythingTyped.children.drop(1).slice(range).toList
     val testAST = if(lastLines.size == 1)lastLines.head else Block(lastLines.init, lastLines.last)
-    tb.untypecheck(IdiomBracket.transform(scala.reflect.runtime.universe)(new DefaultContext,testAST, q"App", everythingTyped.tpe, monadic).get)
+    tb.untypecheck(Expression.transform(scala.reflect.runtime.universe)(new DefaultContext,testAST, q"App", everythingTyped.tpe, monadic).get)
   }
 
   def transform(block: reflect.runtime.universe.Tree, ignore: Int, monadic: Boolean = false) = {

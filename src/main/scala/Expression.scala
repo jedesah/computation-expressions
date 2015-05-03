@@ -1,11 +1,12 @@
 package com.github.jedesah
 
-import scalaz._
-import scala.annotation.compileTimeOnly
 import scala.language.experimental.macros
+
+import scala.annotation.compileTimeOnly
+import scalaz._
 import scala.collection.mutable.ListBuffer
 
-object IdiomBracket {
+object Expression {
 
   def bind[F[_]:Monad,A,B](a: F[A])(f: A => F[B]): F[B] = {
     val i = implicitly[Monad[F]]
@@ -26,45 +27,39 @@ object IdiomBracket {
     }
   }
 
-  val merelyLiftedMsg = "IdiomBracket merely lifted expression, there is a probably a better more explicit way of achieving the same result"
+  val merelyLiftedMsg = "Expression was merely lifter, there is a probably a better more explicit way of achieving the same result"
 
-  def apply[F[_]: Applicative,T](x: T): F[T] = macro idiomBracket[T,F]
+  def apply[F[_]:Applicative,T](x: T): F[T] = macro adaptive[T,F]
+  def idiom[F[_]:Applicative,T](x: T): F[T] = macro idiomBracket[T,F]
   //def apply2[T](x: T): Option[Option[T]] = macro idiomBracket2[T]
-  def monad[F[_]: Monad,T](x: T): F[T] = macro idiomBracketMonad[T,F]
+  def monad[F[_]: Monad,T](x: T): F[T] = macro doNotation[T,F]
 
-  def control(x: String): Option[String] = macro controlImpl
-
-  @compileTimeOnly("`extract` must be enclosed in an `IdiomBracket`")
+  @compileTimeOnly("`extract` must be enclosed in an `Expression`")
   def extract[F[_], T](applicative: F[T]): T = sys.error(s"extract should have been removed by macro expansion!")
 
   // I do not know why I need this... It has to do with the reflective toolbox
-  @compileTimeOnly("`extract` must be enclosed in an `IdiomBracket`")
+  @compileTimeOnly("`extract` must be enclosed in an `Expression`")
   def extract[T](applicative: Option[T]): T = sys.error(s"extract should have been removed by macro expansion!")
 
-  def debug(x: Any): Unit = macro debugImpl
-
   object auto {
-    @compileTimeOnly("`extract` must be enclosed in an `IdiomBracket`")
+    @compileTimeOnly("`extract` must be enclosed in an `Expression`")
     implicit def extract[F[_], T](option: F[T]): T = sys.error(s"extract should have been removed by macro expansion!")
   }
 
   import scala.reflect.macros.blackbox.Context
 
-  def debugImpl(c: Context)(x: c.Expr[Any]): c.Expr[Unit] = {
+  def doNotation[T, F[_]](c: Context)(x: c.Expr[T])(instance: c.Expr[Monad[F]])(implicit tag: c.WeakTypeTag[F[_]]): c.Expr[F[T]] = {
+    macroImpl(c)(x,instance.tree, tag, monadic = true)
+  }
+
+  def idiomBracket[T: c.WeakTypeTag, F[_]](c: Context)(x: c.Expr[T])(instance: c.Expr[Applicative[F]])(implicit tag: c.WeakTypeTag[F[_]]): c.Expr[F[T]] = {
+    macroImpl(c)(x,instance.tree,tag, monadic = false)
+  }
+  
+  def adaptive[T, F[_]](c: Context)(x: c.Expr[T])(instance: c.Expr[Applicative[F]])(implicit tag: c.WeakTypeTag[F[_]]): c.Expr[F[T]] = {
     import c.universe._
-    println(show(x.tree))
-    println(showRaw(x.tree))
-    val message = Literal(Constant(show(x.tree) + ": "))
-    val result = q"""println($message + (${x.tree}))"""
-    c.Expr[Unit](result)
-  }
-
-  def idiomBracket[T: c.WeakTypeTag, F[_]](c: Context)(x: c.Expr[T])(ap: c.Expr[Applicative[F]])(implicit tag: c.WeakTypeTag[F[_]]): c.Expr[F[T]] = {
-    macroImpl(c)(x,ap.tree,tag, monadic = false)
-  }
-
-  def idiomBracketMonad[T, F[_]](c: Context)(x: c.Expr[T])(m: c.Expr[Monad[F]])(implicit tag: c.WeakTypeTag[F[_]]): c.Expr[F[T]] = {
-    macroImpl(c)(x,m.tree, tag, monadic = true)
+    val monadic = instance.tree.tpe.toString.contains("Monad")
+    macroImpl(c)(x, instance.tree,tag, monadic)
   }
 
   def macroImpl[T, F[_]](c: Context)(x: c.Expr[_], instance: c.universe.Tree, tag: c.WeakTypeTag[_], monadic: Boolean) = {
@@ -72,20 +67,6 @@ object IdiomBracket {
     val result = transform(c.universe)(ContextSubset(c),x.tree, instance, tag.tpe, monadic)
     if (!result.isDefined) c.warning(c.enclosingPosition, merelyLiftedMsg)
     c.Expr[F[T]](c.untypecheck(result.getOrElse(q"$instance.pure(${x.tree})")))
-  }
-
-  def controlImpl(c: Context)(x: c.Expr[String]): c.Expr[Option[String]] = {
-    import c.universe._
-    val result = x.tree match {
-      case Match(expr, cases) =>
-        println(cases)
-        //val matchz = Match(q"""List("hello")""", cases.map(c.untypecheck(_).asInstanceOf[CaseDef]))
-        val matchz = Match(q"""List("hello")""", cases.map{case cq"$x1 => $x2" => cq"$x1 => $x2"})
-        q"Some($matchz)"
-        q"""Some(List("5")).map{a => a;$matchz}"""
-      case a => q"Some($a)"
-    }
-    c.Expr[Option[String]](c.untypecheck(result))
   }
 
   /*def idiomBracket2[T: c.WeakTypeTag](c: Context)(x: c.Expr[T]): c.Expr[Option[Option[T]]] = {
@@ -117,7 +98,7 @@ object IdiomBracket {
    * @param ast AST to transform
    * @return Some(Tree) if the tree was transformed or none if it was not transformed
    */
-  def transform(u: scala.reflect.api.Universe)(c: ContextSubset[u.type], ast: u.Tree, applicativeInstance: u.Tree, instanceType: u.Type, monadic: Boolean): Option[u.Tree] = {
+  def transform(u: scala.reflect.api.Universe)(c: ContextSubset[u.type], ast: u.Tree, instance: u.Tree, instanceType: u.Type, monadic: Boolean): Option[u.Tree] = {
     import u._
 
     /**
@@ -136,7 +117,7 @@ object IdiomBracket {
           val hlist = q"$argsWithCons :: shapeless.HNil"
           val namesWithCons = namesInExpr.map(Ident(_)).reduceLeft[u.Tree]((leftArg, rightArg) => q"$leftArg :: $rightArg")
           val namesHList = q"$namesWithCons :: shapeless.HNil"
-          (q"$applicativeInstance.map(shapeless.contrib.scalaz.SequenceFunctions.sequence($hlist)){ case $namesHList => $expr}", 1)
+          (q"$instance.map(shapeless.contrib.scalaz.SequenceFunctions.sequence($hlist)){ case $namesHList => $expr}", 1)
         } else {
             val lambda = createFunction(expr, namesInExpr)
             wrapInApply(lambda, args)
@@ -144,8 +125,8 @@ object IdiomBracket {
       }
       def wrapInApply(expr: u.Tree, args: List[u.Tree]) = {
         val applyTerm = getApplyTerm(args.length, flatten)
-        if (!flatten) (q"$applicativeInstance.$applyTerm(..$args)($expr)", 1)
-        else (q"com.github.jedesah.IdiomBracket.$applyTerm(..$args)($expr)($applicativeInstance)",1)
+        if (!flatten) (q"$instance.$applyTerm(..$args)($expr)", 1)
+        else (q"com.github.jedesah.Expression.$applyTerm(..$args)($expr)($instance)",1)
       }
       expr match {
         case fun: Apply if isExtractFunction(fun) =>
@@ -154,14 +135,14 @@ object IdiomBracket {
           // directly nested extracts: extract(extract(a))
           if (isExtractFunction(extracted)) {
             val lifted = lift(extracted)._1
-            (q"$applicativeInstance.join($lifted)",1)
+            (q"$instance.join($lifted)",1)
           }
           else if (hasExtracts(extracted)) {
             lift(extracted, true)
           } else {
             (extracted, 1)
           }
-        case _ if !hasExtracts(expr) => (q"$applicativeInstance.pure($expr)", 1)
+        case _ if !hasExtracts(expr) => (q"$instance.pure($expr)", 1)
         // An expression of the form:
         // a match { case "bar" => extract(a); case _ => extract(b) }
         // can be rewritten simply as
@@ -247,7 +228,7 @@ object IdiomBracket {
             val exprName = TermName(c.freshName())
             val newExpr = Ident(exprName)
             val function = createFunction(q"$newExpr match { case ..$newCases}", List(exprName))
-            (q"$applicativeInstance.bind($liftedExpr)($function)",1)
+            (q"$instance.bind($liftedExpr)($function)",1)
           } else {
             val (tCases, argsWithWhatTheyReplace: List[List[(u.TermName, u.Tree)]]@unchecked) = cases.map { case cq"$x1 => $x2" =>
               val (newX1, argsWithWhatTheyReplace1) = replaceExtractsWithRef(x1, insidePatternMatch = true)
@@ -271,12 +252,12 @@ object IdiomBracket {
             val List(exprT, trueCaseT, falseCaseT) =
               if (flatten) List(lift(expr)._1, trueCase, falseCase)
               else List(expr, trueCase, falseCase).map(lift(_)._1)
-            (q"$applicativeInstance.bind($exprT)(if(_) $trueCaseT else $falseCaseT)", 1)
+            (q"$instance.bind($exprT)(if(_) $trueCaseT else $falseCaseT)", 1)
           }
         // extract(aa).foo
         case Select(qual, name) =>
           val lifted = lift(qual)._1
-          (q"$applicativeInstance.map($lifted)(_.${name.toTermName})",1)
+          (q"$instance.map($lifted)(_.${name.toTermName})",1)
         case Typed(expr, typeName) =>
           // TODO: This possibly not the most robust way of doing things, but it works for now
           val result = AppliedTypeTree(Ident(TypeName(instanceType.toString)),List(typeName))
@@ -399,7 +380,7 @@ object IdiomBracket {
     }
 
     def addExtract(expr: u.Tree): u.Tree = {
-      q"com.github.jedesah.IdiomBracket.extract($expr)"
+      q"com.github.jedesah.Expression.extract($expr)"
     }
 
     def nbExtracts(expr: u.Tree): Int = expr.filter(isExtractFunction).size
@@ -407,11 +388,11 @@ object IdiomBracket {
     def hasExtracts(expr: u.Tree): Boolean = expr.exists(isExtractFunction)
 
     def isExtractFunction(tree: u.Tree): Boolean = {
-      val idiomBracketPath = "com.github.jedesah.IdiomBracket"
-      val extractMethodNames = List(s"$idiomBracketPath.extract", s"$idiomBracketPath.auto.extract")
+      val expressionPath = "com.github.jedesah.Expression"
+      val extractMethodNames = List(s"$expressionPath.extract", s"$expressionPath.auto.extract")
       tree match {
         case extract: Apply if extract.symbol != null && extractMethodNames.contains(extract.symbol.fullName) => true
-        case q"com.github.jedesah.IdiomBracket.extract($_)" => true
+        case q"com.github.jedesah.Expression.extract($_)" => true
         case _ => false
       }
     }

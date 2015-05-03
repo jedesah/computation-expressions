@@ -7,7 +7,6 @@ import org.specs2.mutable._
 import scala.concurrent.Await
 import scalaz.Monad
 
-
 class Assumptions extends Specification {
 
   "assumptions" should {

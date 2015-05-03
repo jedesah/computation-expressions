@@ -15,13 +15,13 @@ class NonCompilation extends Specification {
   "compile errors" should {
     "extract does not compile on it's own" in {
       val ast = q"""
-                import com.github.jedesah.IdiomBracket.extract
+                import com.github.jedesah.Expression.extract
                 val a: Option[String] = ???
                 def doThing(a: String): String = ???
                 doThing(extract(a))
               """
       val tb = cm.mkToolBox()
-      tb.compile(ast) must throwA[ToolBoxError]("`extract` must be enclosed in an `IdiomBracket`")
+      tb.compile(ast) must throwA[ToolBoxError]("`extract` must be enclosed in an `Expression`")
     }
   }
 }

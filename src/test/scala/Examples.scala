@@ -2,7 +2,7 @@ package com.github.jedesah
 
 import java.util.concurrent.TimeUnit
 
-import com.github.jedesah.IdiomBracket.extract
+import com.github.jedesah.Expression.extract
 import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary._
 import org.specs2.ScalaCheck
@@ -39,7 +39,7 @@ class Examples extends Specification with ScalaCheck {
                            lookupReputation: Phone => Future[Score],
                            renderPage: (Phone, Address, Int) => HTML) =>
 
-        val f: Future[HTML] = IdiomBracket.monad[Future, HTML] {
+        val f: Future[HTML] = Expression.monad[Future, HTML] {
           val phone = lookupPhone(phoneString)
           val address = lookupAddress(extract(phone))
           val rep = lookupReputation(extract(phone))
@@ -59,8 +59,8 @@ class Examples extends Specification with ScalaCheck {
                            lookupAddress: Phone => Future[Address],
                            lookupReputation: Phone => Future[Score],
                            renderPage: (Phone, Address, Int) => HTML) =>
-        import com.github.jedesah.IdiomBracket.auto.extract
-        val f: Future[HTML] = IdiomBracket.monad[Future, HTML] {
+        import com.github.jedesah.Expression.auto.extract
+        val f: Future[HTML] = Expression.monad[Future, HTML] {
           val phone = lookupPhone(phoneString)
           val address = lookupAddress(phone)
           val rep = lookupReputation(phone)
