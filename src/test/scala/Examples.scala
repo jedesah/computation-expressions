@@ -87,7 +87,7 @@ class Examples extends Specification with ScalaCheck {
         ok("Future terminated before timeout which means we did not wait on b")
       }
     }
-    "simple enough" in {
+    "Usage" in {
       "explicit" ! prop { (phoneString: String,
                            lookupPhone: String => Future[Phone],
                            lookupAddress: Phone => Future[Address],

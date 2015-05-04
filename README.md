@@ -139,6 +139,8 @@ Now with Expressions:
 ### Installation
 
     libraryDependencies += "com.github.jedesah" %% "expressions" % NOT-RELEASED-YET
+    
+### Usage
 
 Now, you can `import com.github.jedesah.Expression._` and use it like so:
 
