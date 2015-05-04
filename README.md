@@ -16,6 +16,8 @@ Background on Computation Expressions:
 
 ## Features
 
+Note that the examples below do not explicit the type parameters of the `Expression` application. For some reason, these need to be explicit, I am still investigating why, so in reality, you need to do `Expression[Future, Int]{ combine(a,b,c) }`.
+
 
 ### Flexible use of abstractions
 
@@ -24,9 +26,9 @@ For-comprehensions are based on the notion of *do-notation* you may be familiar 
     a: Future[A]
     b: Future[B]
     c: Future[C]
-    for (aa <- a
+    for {aa <- a
          bb <- b
-         cc <- c) yield combine(a, b, c)
+         cc <- c} yield combine(a, b, c)
 
 Let's assume `Future[A]` takes 5 seconds but `Future[C]` fails after 1 second. Let's assume we want it to "fail-fast", that is, we want the whole thing to fail immediately if `Future[C]` fails after 1 second. This behavior is simply impossible with the above code because `bind` does not support failing fast. Please see [my talk](https://www.youtube.com/watch?v=tU4pU5vaddU#t=823) at PNWScala for a more in depth explanation of why this is.
 
@@ -46,9 +48,9 @@ Let's consider the following piece of code:
     a: Future[A]
     b: Future[B]
     c: Future[C]
-    for (aa <- a
+    for {aa <- a
          bb <- b
-         cc <- c) yield if (aa == something) polish(b) else polish(c)
+         cc <- c} yield if (aa == something) polish(bb) else polish(cc)
 
  The above code will wait on the result of all three `Future`'s before deciding to pick either the result from `b` or `c`. That's not ideal as far as I am concerned. I would rather if it waited on `a` and then waited on either `b` or `c` because at that point we know the result of the other one is of no importance.
 
@@ -59,7 +61,7 @@ Let's consider the following piece of code:
      c: Future[C]
      (for (aa <- a) yield
        if (aa == something) for (bb <- b) yield polish(bb)
-       else for (cc <- c) yield polish(cc)).flatten
+       else for (cc <- c) yield polish(cc)).flatMap(identity)
 
 This code will do the right thing when it comes to discarding unnecessary `Future`s. In my book though, this is overly ceremonious.
 
@@ -68,7 +70,9 @@ Instead, we can do this:
     a: Future[A]
     b: Future[B]
     c: Future[C]
-    Expression { if(a == something) polish(b) else polish(c) }
+    Expression { if(extract(a) == something) polish(b) else polish(c) }
+    
+* Here is an example of somewhere automatic extraction is not triggered due to `==` being untyped. An explicit `extract` is required.
 
 ### Manipulating Context within an Expression (TODO)
 
