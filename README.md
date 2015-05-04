@@ -80,26 +80,26 @@ Let's move away from `Future`s now because this notation supports any Context. L
 
 for-comprehension version:
 
-    a: Writer[Int] = Writer.point(8).log("This is a magic value")
-    b: Writer[Int] = Writer.point(random()).log("I got this value from a dirty function")
-    c: Writer[String] = Writer.point("Hello World").log("Hello World...")
+    a: Writer[String, Int] = 8.set("This is a magic value")
+    b: Writer[String, Int] = random().set("I got this value from a dirty function")
+    c: Writer[String, String] = "Hello World".set("Hello World...")
     for {
       aa <- a
       bb <- b
       div <- if (b == 0) {
-          Write.point(5).log("We avoided a division by zero, yay!")
-        } else Write.point(aa / b)
+          5.set("We avoided a division by zero, yay!")
+        } else Write("", aa / bb)
       cc <- c
     } yield cc * div
     
 Now with Expressions:
 
-    a: Writer[Int] = Writer.point(8).log("This is a magic value")
-    b: Writer[Int] = Writer.point(random()).log("I got this value from a dirty function")
-    c: Writer[String] = Writer.point("Hello World").log("Hello World...")
+    a: Writer[String, Int] = 8.set("This is a magic value")
+    b: Writer[String, Int] = random().set("I got this value from a dirty function")
+    c: Writer[String, String] = "Hello World".set("Hello World...")
     Expression {
       val div = if (b == 0) {
-        ctx.log("We avoided a division by zero, yay!")
+        ctx :++> "We avoided a division by zero, yay!"
         5
       } else a / b
       c * div
@@ -109,23 +109,23 @@ Conversely for `Future`s:
 
 for comprehension:
 
-    a: Future[Int] = Writer.point(8).log("This is a magic value")
-    b: Future[Int] = Writer.point(random()).log("I got this value from a dirty function")
-    c: Future[String] = Writer.point("Hello World").log("Hello World...")
+    a: Future[Int]
+    b: Future[Int]
+    c: Future[String]
     for {
       aa <- a
       bb <- b
-      div <- if (b == 0) {
+      div <- if (bb == 0) {
         Future.failed(new Exception("Division by zero :-("))
-      } else Future.now(a / b)
+      } else Future.now(aa / bb)
       cc <- c
     } yield cc * div
 
 Now with Expressions:
 
-    a: Future[Int] = Writer.point(8).log("This is a magic value")
-    b: Future[Int] = Writer.point(random()).log("I got this value from a dirty function")
-    c: Future[String] = Writer.point("Hello World").log("Hello World...")
+    a: Future[Int]
+    b: Future[Int]
+    c: Future[String]
     Expression {
       val div = if (b == 0) {
         // return is a special function on the ctx that allows to change the whole Context to the value passed to it
