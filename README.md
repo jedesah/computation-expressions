@@ -87,7 +87,6 @@ for-comprehension version:
       aa <- a
       bb <- b
       div <- if (b == 0) {
-          ctx.log("We avoided a division by zero, yay!")
           Write.point(5).log("We avoided a division by zero, yay!")
         } else Write.point(aa / b)
       cc <- c
