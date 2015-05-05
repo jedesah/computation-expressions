@@ -221,7 +221,7 @@ Scala Workflow is the most advanced project out there doing a similar thing. It 
 
 ## TODO
 
-- Fix all the limitations
+- Fix limitations
 - Implement `ctx`
 - Support for nested abstractions
 - Generalize tests
