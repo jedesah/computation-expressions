@@ -187,6 +187,64 @@ Although the objective would be too support a maximum subset of the language, in
 - Does not support value pattern matching => `val (a,b) = something`
 - The `match` statement is a challenge to get right in all cases. It should work fine for basic usage, but will start to break down if using stable identifiers and excessive monadic behavior in pattern matches. Value pattern matching is actually desagured to a pattern match which is why it is not supported.
 
+## How it works
+
+Expressions is based on a fairly straight forward transformation.
+
+Function applications within an `Expression` with arguments that contain an extract like this:
+ 
+    Expression { foo(extract(a), b, extract(c) }
+
+are rewritten like so:
+
+    instance.apply2(a,c)(foo(_,b,_))
+    
+where instance is either `Monad[A]` or `Applicative[A]` depending on what is available in scope
+
+Sometimes `bind` must be used in order to desugar the Expression:
+
+    Expression { foo(extract(bar(extract(a))), b, extract(c)) }
+    
+In this situation `bar` takes an `A` and produces a `Something[A]`. Here is the desugared code:
+
+    instance.apply(instance.bind(a)(bar),c)(foo(_,b,_))
+    
+Match statement:
+
+    Expression {
+        extract(a) match {
+            case 1 => extract(b)
+            case 2 => extract(c) + 1
+        }
+    }
+    
+becomes:
+    
+    instance.bind(a)(_ match {
+        case 1 => b
+        case 2 => instance.map(c)(cc => cc + 1)
+    }
+    
+Match statements can get hairy:
+
+    Expression {
+        val foo = extract(getFoo)
+        extract(bar) match {
+            case `foo` => extract(b)
+            case 2 => extract(c) + 1
+        }
+    }
+    
+becomes:
+    
+    {
+        val foo = getFoo
+        instance.bind(instance.apply(foo, bar)((_,_)){ case (x$1, x$2) => x$1 match {
+            case `x$2` => b
+            case 2 => instance.map(c)(cc => cc + 1)
+        }
+    }
+
 ## Similar Projects
 
 ### [Async/Await](https://github.com/scala/async)
