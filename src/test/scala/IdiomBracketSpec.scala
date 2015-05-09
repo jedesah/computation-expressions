@@ -221,21 +221,6 @@ class IdiomBracketSpec extends Specification with ScalaCheck {
         val f = Expression.idiom[Option, String](doThing(a, b))
         f == Applicative[Option].apply2(a, b)(doThing)
       }
-      /*"SIP-22 example" ! prop { (optionDOY: Option[String]) =>
-      val date = """(\d+)/(\d+)""".r
-      case class Ok(message: String)
-      case class NotFound(message: String)
-      def nameOfMonth(num: Int): Option[String] = None
-
-      val f = IdiomBracket.monad[Option, Any] {
-        extract(optionDOY) match {
-          case date(month, day) =>
-            Ok(s"It’s ${extract(nameOfMonth(month.toInt))}!")
-          case _ =>
-            NotFound("Not a date, mate!")
-        }
-      }
-    }*/
       "with interpolated string" in {
         "simple" ! prop { (a: Option[String]) =>
           val f = Expression.idiom[Option, String] {
