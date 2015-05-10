@@ -1,12 +1,18 @@
 # Expressions [![Build Status](https://api.shippable.com/projects/5542a8f8edd7f2c052dbbac3/badge?branchName=master)](https://app.shippable.com/projects/5542a8f8edd7f2c052dbbac3/builds/latest)
 
-Expressions are a replacement for Scala for-comprehensions.
+Expressions are an alternative for Scala for-comprehensions.
 
 Scala for-comprehensions have three drawbacks that I have identified:
 
 - They only use `flatMap` which can be unnecessarily restrictive
 - They don't play very well with `if` and `match` statements
 - It's not possible to manipulate the context from within a for-comprehension
+
+They also have some advantages:
+
+- Greater control over how effects are sequenced
+ 
+You should use Expressions when you don't care about the ordering of effects, you just want to operate over values in a Context and have the Contexts be merged in a sensible way.
 
 The concepts behind Expressions are loosely related to Computation Expressions from F# which is the inspiration for the name.
 
@@ -21,7 +27,7 @@ Note that the examples below do not explicit the type parameters of the `Express
 
 ### Flexible use of abstractions
 
-For-comprehensions are based on the notion of *do-notation* you may be familiar with from Haskell. This notation allows one to work with values within some kind of "context" which can be treated as a `Monad`. A `Monad` is any abstraction that supports the two following methods `point[A](a: A): F[A]` and `bind[A](fa: F[A])(f: A => F[B]): F[B]` (also know as `flatMap`). Both *do-notation* and for-comprehensions thus rewrite the "sugared" code into applications of `point` and `bind`. Unfortunately, while `bind` is a very powerful method and can be used to rewrite any expressions, it's power comes at the cost of flexibility in it's implementation. `Applicative` offers a less powerful abstraction that does however give more flexibility to it's implementation. What does this all mean, let's look at an example:
+For-comprehensions are based on the notion of *do-notation* you may be familiar with from Haskell. This notation allows one to work with values within some kind of "context" which can be treated as a `Monad`. A `Monad` is any abstraction that supports the two following methods `point[A](a: A): F[A]` and `bind[A](fa: F[A])(f: A => F[B]): F[B]` (also known as `flatMap`). Both *do-notation* and for-comprehensions thus rewrite the "sugared" code into applications of `point` and `bind`. Unfortunately, while `bind` is a very powerful method and can be used to rewrite any expressions, its power comes at the cost of flexibility in its implementation. `Applicative` offers a less powerful abstraction that does however give more flexibility to its implementation. What does this all mean, let's look at an example:
 
     a: Future[A]
     b: Future[B]
@@ -133,6 +139,18 @@ Now with Expressions:
       } else a / b
       c * div
     }
+    
+### An example where it is better to use a for-comprehension
+
+Here is a snippert of code from [Remotely](https://github.com/oncue/remotely)
+
+    private def time[A](task: Task[A]): Task[(Duration, A)] = for {
+        t1 <- Task.delay(System.currentTimeMillis)
+        a  <- task
+        t2 <- Task.delay(System.currentTimeMillis)
+    } yield ((t2 - t1).milliseconds, a)
+    
+If Expressions were to be used on this piece of code. The time at which System.currentTimeMillis is executed for the second time is likely to happen before the `task` is completely and thus would produce incorrect behavior.
 
 ## Getting Started
 
@@ -171,7 +189,7 @@ or if you prefer even more magic, like so:
 
 ## Limitations
 
-Although the objective would be too support a maximum subset of the language, in practice we are far from there. Here are a bunch of constructs know to have good engouh support as well as some know to have some issues. If a construct is in neither category it's safe to assume it probably has some issues. The hope is that once Macro support improves in Scala ([Scala Meta)](http://scalameta.org/), it will be easier to support all of the language.
+Although the objective would be to support a maximum subset of the language, in practice we are far from there. Here are a bunch of constructs known to have good enough support as well as some known to have some issues. If a construct is in neither category it's safe to assume it probably has some issues. The hope is that once Macro support improves in Scala ([Scala Meta)](http://scalameta.org/), it will be easier to support all of the language.
 
 ### Know to work well enough
 
@@ -257,11 +275,11 @@ becomes:
 
 ### [Scala Workflow](https://github.com/aztek/scala-workflow)
 
-Scala Workflow is the most advanced project out there doing a similar thing. It uses the least powerful interface and also allows injecting functions available on the abstraction right in the middle of a workflow. Unfortunately, Scala Workflow requires untyped macros which are no longer supported in the latest version of Macro Paradise. It also does more heavy lifting then I believe is necessary, for instance it implements the implicit extraction on it's own where as Expressions rely on good old Scala implicit resolution. This means that implicit extraction will break down in Expressions if the code has other unrelated implicit conversions (because Scala does not support multiple implicit conversions). IMHO this is a separate concern and I would rather see a macro or Scala itself support multiple implicit conversions with all the gotchas that come with it. So although Scala Workflow is in theory the most feature-full and generic solution, it's complicated implementation is weighting it down.
+Scala Workflow is the most advanced project out there doing a similar thing. It uses the least powerful abstraction and also allows injecting functions available on the abstraction right in the middle of a workflow. Unfortunately, Scala Workflow requires untyped macros which are no longer supported in the latest version of Macro Paradise. It also does more heavy lifting then I believe is necessary. For instance it implements the implicit extraction on its own where as Expressions rely on good old Scala implicit resolution. This means that implicit extraction will break down in Expressions if the code has other unrelated implicit conversions (because Scala does not support multiple implicit conversions). IMHO this is a separate concern and I would rather see a macro or Scala itself support multiple implicit conversions with all the gotchas that come with it. So although Scala Workflow is in theory the most feature-full and generic solution, it has a possibly overly complicated implementation.
 
 ## TODO
 
-- Fix all the limitations
+- Fix limitations
 - Implement `ctx`
 - Support for nested abstractions
 - Generalize tests
