@@ -1,4 +1,4 @@
-# Expressions [![Build Status](https://api.shippable.com/projects/5542a8f8edd7f2c052dbbac3/badge?branchName=master)](https://app.shippable.com/projects/5542a8f8edd7f2c052dbbac3/builds/latest)
+# Expressions
 
 Expressions are an alternative for Scala for-comprehensions.
 
