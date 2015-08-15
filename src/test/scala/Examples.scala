@@ -71,7 +71,7 @@ class Examples extends Specification with ScalaCheck {
           } yield if (aa == "something") polish(bb) else polish(cc)
           Await.ready(result, 500.milliseconds) should throwA[TimeoutException]
         }
-        "the ceremonious version works but does not afford much over using the abtraction directly" in {
+        "the ceremonious version works but does not afford much over using the abstraction directly" in {
           val a: Future[String] = Future.successful("Hello")
           val b: Future[Int] = Future{Thread.sleep(1000); 10}
           val c: Future[Int] = Future{Thread.sleep(10); 8}
