@@ -13,7 +13,8 @@ import scala.concurrent.{Await, Future}
 import scala.util.Try
 import scalaz.std.scalaFuture.futureInstance
 import scalaz._
-import Scalaz._
+import scalaz.syntax.writer._
+import scalaz.std.string._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
