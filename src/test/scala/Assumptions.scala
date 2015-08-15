@@ -10,7 +10,7 @@ import scalaz.Monad
 class Assumptions extends Specification {
 
   "assumptions" should {
-    "future" in {
+    "bind over Future does not require futures that are part of the continuation to complete in order to complete" in {
       import scala.concurrent.Future
       import scala.concurrent.Promise
       import scala.concurrent.ExecutionContext.Implicits.global
