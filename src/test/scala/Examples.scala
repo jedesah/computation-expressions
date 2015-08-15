@@ -47,6 +47,15 @@ class Examples extends Specification with ScalaCheck {
           val result: Future[Int] = for (aa <- a; bb <- b; cc <- c) yield combine(aa,bb,cc)
           Await.ready(result, 500.milliseconds) should throwA[TimeoutException]
         }
+        "the scalaz version does fail-fast" in {
+          val a: Future[Int] = Future{Thread.sleep(1000); 10}
+          val b: Future[Int] = Future.successful(2)
+          val c: Future[Int] = Future{Thread.sleep(10); throw new Exception}
+          val result = Applicative[Future].apply3(a,b,c)(combine)
+          // This will throw an exception if we are stuck waiting for the first Future
+          Await.ready(result, 500.milliseconds)
+          ok( """Future terminated before timeout which indicates "failing fast"""")
+        }
         "the Expression version does fail-fast" in {
           import Expression.auto.extract
           val a: Future[Int] = Future{Thread.sleep(1000); 10}
