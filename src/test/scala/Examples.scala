@@ -20,6 +20,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class Examples extends Specification with ScalaCheck {
 
+  sequential
+
   implicit def FutureArbitrary[A: Arbitrary]: Arbitrary[scala.concurrent.Future[A]] =
     Arbitrary(arbitrary[A] map ((x: A) => scala.concurrent.Future.successful(x)))
 
